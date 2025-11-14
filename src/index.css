@@ -1,5 +1,68 @@
- @import "tailwindcss";
- @plugin "daisyui";
- @plugin "daisyui" {
-   themes: light --default, dark --prefersdark;
- }
+/* ==========================================================
+   🎨 Feuille principale de styles (Tailwind 3 + DaisyUI)
+   ========================================================== */
+
+/* 1) @import toujours en tout premier */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+/* 2) Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 3) Tes règles CSS normales */
+html,
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: hsl(var(--b1, 0 0% 100%));
+  color: hsl(var(--bc, 0 0% 0%));
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #9ca3af;
+  border-radius: 10px;
+}
+
+/* Petite animation utilitaire */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animations légères utilisées sur la Home */
+@keyframes fade-in {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(14px) }
+  to { opacity: 1; transform: translateY(0) }
+}²
+.fade-in { animation: fade-in .6s ease-out both }
+.slide-up { animation: slide-up .7s ease-out both }
+.delay-200 { animation-delay: .2s }
+.delay-400 { animation-delay: .4s }
+

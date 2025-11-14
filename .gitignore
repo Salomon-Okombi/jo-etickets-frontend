@@ -1,24 +1,101 @@
-# Logs
-logs
+# =========================================================
+# 🧩 GÉNÉRAL
+# =========================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
 *.log
+logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# =========================================================
+# 🧠 ENVIRONNEMENT
+# =========================================================
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+.env.*
+!env.example
+
+# =========================================================
+# ⚙️ DÉPENDANCES
+# =========================================================
+node_modules/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# =========================================================
+# 🏗️ BUILD / DIST
+# =========================================================
+# Frontend (Vite/React)
+dist/
+dist-ssr/
+build/
 *.local
 
-# Editor directories and files
+# Backend (Django)
+staticfiles/
+media/
+db.sqlite3
+migrations/__pycache__/
+*.pot
+*.pyc
+
+# =========================================================
+# 🧰 OUTILS / ÉDITEURS
+# =========================================================
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+
+# =========================================================
+# 🚀 RENDER / DEPLOY
+# =========================================================
+# fichiers temporaires / artefacts
+.render/
+.render-buildpacks/
+render.yaml.local
+render.yaml.lock
+
+# =========================================================
+# 📦 TESTS / COVERAGE
+# =========================================================
+coverage/
+*.lcov
+.pytest_cache/
+.coverage
+coverage-final.json
+
+# =========================================================
+# 🔒 AUTRES SÉCURITÉS
+# =========================================================
+# Clés, certificats, etc.
+*.pem
+*.key
+*.crt
+*.csr
+secrets.json
+
+# Env
+.env
+.env.*
+!.env.example
