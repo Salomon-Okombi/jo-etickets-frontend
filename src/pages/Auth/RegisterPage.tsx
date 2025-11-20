@@ -1,105 +1,247 @@
-// src/pages/Auth/RegisterPage.tsx (ou chemin équivalent)
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import useAuth from "@/hooks/useAuth";
-import { ROUTES } from "@/config";
-import Spinner from "@/components/ui/Spinner";
+// src/pages/Auth/RegisterPage.tsx
+import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  registerUser,
+  type RegisterPayload,
+  loginUser,
+  storeTokens,
+  getProfile,
+} from "@/api/auth.api";
+import { useAuth } from "@/hooks/useAuth";
 
-export default function RegisterPage() {
+interface LocationState {
+  from?: string;
+}
+
+const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register, loading } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, setUser } = useAuth();
 
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const from =
+    (location.state as LocationState | undefined)?.from ||
+    "/mon-espace/commandes";
+
+  // Si déjà connecté → inutile d'afficher la page d'inscription
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, from, navigate]);
+
+  const validate = () => {
+    if (!username.trim() || !email.trim() || !password.trim()) {
+      setError("Merci de renseigner tous les champs obligatoires.");
+      return false;
+    }
+    if (password.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères.");
+      return false;
+    }
+    if (password !== passwordConfirm) {
+      setError("Les mots de passe ne correspondent pas.");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!validate()) return;
+
     try {
-      await register(form.username, form.email, form.password);
-      navigate(ROUTES.home);
-    } catch {
-      setError("Impossible de créer le compte. Vérifiez vos informations.");
+      setLoading(true);
+
+      const payload: RegisterPayload = {
+        username: username.trim(),
+        email: email.trim(),
+        password,
+      };
+
+      // 1. Création du compte
+      await registerUser(payload);
+
+      // 2. Connexion automatique
+      const tokens = await loginUser(payload.username, payload.password);
+      storeTokens(tokens);
+
+      // 3. Chargement du profil
+      try {
+        const profile = await getProfile();
+        setUser(profile);
+      } catch (profileError) {
+        console.error(
+          "Impossible de charger le profil après inscription :",
+          profileError
+        );
+      }
+
+      // 4. Redirection vers la page d'origine ou mon espace
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Impossible de créer votre compte. Vérifiez les informations ou essayez avec un autre email / nom d’utilisateur."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-base-200">
-      <div className="card w-full max-w-md shadow-lg bg-base-100 p-8">
-        <h1 className="text-2xl font-bold text-center mb-4">Inscription</h1>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="alert alert-error text-sm">
-              <span>{error}</span>
+    <div className="auth-page">
+      <div className="auth-page__inner">
+        {/* Bloc gauche : texte / branding */}
+        <section className="auth-page__intro">
+          <div className="auth-page__logo">
+            <div className="auth-page__logo-mark">JO</div>
+            <div className="auth-page__logo-text">
+              <span className="auth-page__logo-title">Paris 2024</span>
+              <span className="auth-page__logo-subtitle">
+                Billetterie e-Tickets
+              </span>
             </div>
-          )}
-
-          <div>
-            <label className="label">
-              <span className="label-text">Nom d’utilisateur</span>
-            </label>
-            <input
-              type="text"
-              name="username"
-              className="input input-bordered w-full"
-              placeholder="Nom d’utilisateur"
-              value={form.username}
-              onChange={handleChange}
-              required
-            />
           </div>
 
-          <div>
-            <label className="label">
-              <span className="label-text">Adresse e-mail</span>
-            </label>
-            <input
-              type="email"
-              name="email"
-              className="input input-bordered w-full"
-              placeholder="exemple@mail.com"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
+          <h1 className="auth-page__title">
+            Créez votre compte
+            <span>billetterie JO Paris 2024</span>
+          </h1>
 
-          <div>
-            <label className="label">
-              <span className="label-text">Mot de passe</span>
-            </label>
-            <input
-              type="password"
-              name="password"
-              className="input input-bordered w-full"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary w-full mt-4"
-            disabled={loading}
-          >
-            {loading ? <Spinner size="sm" /> : "Créer un compte"}
-          </button>
-
-          <p className="text-center text-sm mt-3">
-            Déjà un compte ?{" "}
-            <Link className="link link-primary" to={ROUTES.login}>
-              Connectez-vous
-            </Link>
+          <p className="auth-page__text">
+            En créant un compte, vous pourrez réserver vos e-billets, suivre vos
+            commandes et retrouver à tout moment vos accès aux sites
+            olympiques.
           </p>
-        </form>
+
+          <ul className="auth-page__bullets">
+            <li>Un compte unique pour toutes vos réservations</li>
+            <li>E-billets sécurisés, accessibles en ligne</li>
+            <li>Historique des commandes et paiements</li>
+          </ul>
+        </section>
+
+        {/* Bloc droit : formulaire d'inscription */}
+        <section className="auth-page__panel">
+          <div className="auth-card">
+            <h2 className="auth-card__title">Créer un compte</h2>
+            <p className="auth-card__subtitle">
+              Renseignez un nom d&apos;utilisateur, un email valide et un mot de
+              passe sécurisé. Vous serez automatiquement connecté après
+              l&apos;inscription.
+            </p>
+
+            {error && (
+              <div className="auth-card__alert">
+                <p>{error}</p>
+              </div>
+            )}
+
+            <form className="auth-form" onSubmit={handleSubmit}>
+              <div className="auth-form__field">
+                <label htmlFor="username" className="auth-form__label">
+                  Nom d&apos;utilisateur
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="auth-form__input"
+                  placeholder="ex : jean.dupont"
+                />
+              </div>
+
+              <div className="auth-form__field">
+                <label htmlFor="email" className="auth-form__label">
+                  Adresse email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="auth-form__input"
+                  placeholder="vous@example.com"
+                />
+              </div>
+
+              <div className="auth-form__field">
+                <label htmlFor="password" className="auth-form__label">
+                  Mot de passe
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="auth-form__input"
+                  placeholder="Au moins 8 caractères"
+                />
+              </div>
+
+              <div className="auth-form__field">
+                <label
+                  htmlFor="passwordConfirm"
+                  className="auth-form__label"
+                >
+                  Confirmation du mot de passe
+                </label>
+                <input
+                  id="passwordConfirm"
+                  type="password"
+                  autoComplete="new-password"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  className="auth-form__input"
+                  placeholder="Retapez votre mot de passe"
+                />
+              </div>
+
+              <div className="auth-form__footer">
+                <button
+                  type="submit"
+                  className="auth-form__submit"
+                  disabled={loading}
+                >
+                  {loading ? "Création du compte..." : "Créer mon compte"}
+                </button>
+              </div>
+            </form>
+
+            <div className="auth-card__bottom">
+              <p>
+                Vous avez déjà un compte ?{" "}
+                <Link to="/login" className="auth-card__link">
+                  Se connecter
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          <p className="auth-page__security">
+            🔐 En créant un compte, vous acceptez que vos données soient
+            utilisées pour la gestion de vos commandes d’e-billets dans le
+            cadre de ce projet pédagogique.
+          </p>
+        </section>
       </div>
     </div>
   );
-}
+};
+
+export default RegisterPage;

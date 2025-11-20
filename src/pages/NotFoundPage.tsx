@@ -1,24 +1,42 @@
 // src/pages/NotFoundPage.tsx
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-export default function NotFoundPage() {
+const NotFoundPage: React.FC = () => {
+  const location = useLocation();
+
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-base-200 text-center px-4">
-      <h1 className="text-7xl font-extrabold text-error mb-4">404</h1>
-      <h2 className="text-2xl font-semibold mb-2">Page introuvable</h2>
-      <p className="text-base-content/70 mb-6 max-w-md">
-        Désolé, la page que vous recherchez n’existe pas ou a été déplacée.
-      </p>
+    <div className="not-found">
+      <div className="not-found__inner">
+        <div className="not-found__badge">404</div>
 
-      <div className="flex gap-4">
-        <Link to="/" className="btn btn-primary">
-          Retour à l’accueil
-        </Link>
-        <Link to="/events" className="btn btn-outline">
-          Voir les événements
-        </Link>
+        <h1 className="not-found__title">
+          Page introuvable
+        </h1>
+
+        <p className="not-found__text">
+          L&apos;adresse <code>{location.pathname}</code> ne correspond à aucune
+          page de la billetterie JO Paris 2024. Il est possible que le lien
+          soit incorrect ou que la page n&apos;existe plus.
+        </p>
+
+        <div className="not-found__actions">
+          <Link to="/" className="not-found__btn not-found__btn--primary">
+            Retour à l&apos;accueil
+          </Link>
+          <Link to="/evenements" className="not-found__btn not-found__btn--ghost">
+            Voir les épreuves
+          </Link>
+        </div>
+
+        <p className="not-found__hint">
+          Besoin d&apos;un billet ? Rendez-vous dans la section{" "}
+          <Link to="/offres">Offres</Link> pour choisir une formule Solo, Duo ou
+          Famille.
+        </p>
       </div>
-    </main>
+    </div>
   );
-}
+};
+
+export default NotFoundPage;
