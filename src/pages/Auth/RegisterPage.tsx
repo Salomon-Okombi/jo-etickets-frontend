@@ -67,6 +67,7 @@ const RegisterPage: React.FC = () => {
         username: username.trim(),
         email: email.trim(),
         password,
+        type_compte: "CLIENT"
       };
 
       // 1. Création du compte

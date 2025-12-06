@@ -1,160 +1,223 @@
 // src/pages/Admin/Events/EventAdminEdit.tsx
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { getEvent, updateEvent, deleteEvent } from "@/api/events.api";
-import type { Event } from "@/api/events.api";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { api } from "@/api/axiosClient";
 
-export default function EventAdminEdit() {
-  const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
+interface AdminEvent {
+  id: number;
+  nom: string;
+  discipline_sportive: string;
+  date_evenement: string;
+  lieu_evenement: string;
+  description?: string | null;
+}
+
+const EventAdminEdit: React.FC = () => {
+  const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
 
-  const [initial, setInitial] = useState<Event | null>(null);
+  const [event, setEvent] = useState<AdminEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Form fields
+  // Champs du formulaire
   const [nom, setNom] = useState("");
-  const [discipline_sportive, setDiscipline] = useState("");
-  const [date_evenement, setDate] = useState("");
-  const [lieu_evenement, setLieu] = useState("");
+  const [discipline, setDiscipline] = useState("");
+  const [dateEvenement, setDateEvenement] = useState("");
+  const [lieu, setLieu] = useState("");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
+    const loadEvent = async () => {
+      if (!eventId) return;
       try {
-        const ev = await getEvent(eventId);
-        setInitial(ev);
-        setNom(ev.nom);
-        setDiscipline(ev.discipline_sportive);
-        setDate(ev.date_evenement);
-        setLieu(ev.lieu_evenement);
-        setDescription(ev.description ?? "");
+        setLoading(true);
+        setError(null);
+        const { data } = await api.get<AdminEvent>(`/evenements/${eventId}/`);
+        setEvent(data);
+
+        setNom(data.nom);
+        setDiscipline(data.discipline_sportive);
+        // On garde juste la partie date "YYYY-MM-DD"
+        setDateEvenement(data.date_evenement.slice(0, 10));
+        setLieu(data.lieu_evenement);
+        setDescription(data.description || "");
+      } catch (err) {
+        console.error(err);
+        setError("Impossible de charger l’événement.");
       } finally {
         setLoading(false);
       }
-    }
-    load();
+    };
+
+    loadEvent();
   }, [eventId]);
 
-  const canSubmit = nom && discipline_sportive && date_evenement && lieu_evenement;
-
-  async function onSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!eventId) return;
+    setError(null);
 
-    setSaving(true);
+    if (!nom.trim() || !discipline.trim() || !dateEvenement || !lieu.trim()) {
+      setError("Merci de remplir tous les champs obligatoires.");
+      return;
+    }
+
     try {
-      await updateEvent(eventId, {
+      setSaving(true);
+      await api.put(`/evenements/${eventId}/`, {
         nom,
-        discipline_sportive,
-        date_evenement,
-        lieu_evenement,
-        description,
+        discipline_sportive: discipline,
+        date_evenement: dateEvenement,
+        lieu_evenement: lieu,
+        description: description || null,
       });
-      navigate("/admin/events");
+
+      navigate("/admin/evenements");
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors de la mise à jour de l’événement.");
     } finally {
       setSaving(false);
     }
+  };
+
+  if (loading) {
+    return <div className="p-4 text-sm text-slate-200">Chargement…</div>;
   }
 
-  async function onDelete() {
-    const ok = window.confirm("Supprimer définitivement cet événement ?");
-    if (!ok) return;
-    setDeleting(true);
-    try {
-      await deleteEvent(eventId);
-      navigate("/admin/events");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  if (loading || !initial) {
+  if (!event) {
     return (
-      <div className="flex justify-center py-16">
-        <span className="loading loading-spinner loading-lg" />
+      <div className="space-y-4">
+        <p className="text-sm text-red-300">
+          Impossible de trouver cet événement.
+        </p>
+        <Link
+          to="/admin/evenements"
+          className="text-xs md:text-sm rounded-full border border-slate-500 px-4 py-2 text-slate-200 hover:bg-slate-800/70"
+        >
+          ⬅ Retour à la liste
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold">Modifier l’événement</h1>
-        <button
-          className="btn btn-error"
-          onClick={onDelete}
-          disabled={deleting}
-          title="Supprimer l’événement"
+    <div className="max-w-3xl space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">
+            Modifier l&apos;événement
+          </h1>
+          <p className="text-sm text-gray-300 mt-1 max-w-xl">
+            Mets à jour les informations de l’épreuve. Ces changements seront
+            visibles sur le site public et dans les offres associées.
+          </p>
+        </div>
+
+        <Link
+          to="/admin/evenements"
+          className="text-xs md:text-sm rounded-full border border-slate-500 px-4 py-2 text-slate-200 hover:bg-slate-800/70"
         >
-          {deleting ? <span className="loading loading-spinner" /> : "Supprimer"}
-        </button>
+          ⬅ Retour à la liste
+        </Link>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-4">
-        <label className="form-control">
-          <span className="label-text">Nom</span>
-          <input
-            className="input input-bordered"
-            value={nom}
-            onChange={(e) => setNom(e.target.value)}
-            required
-          />
-        </label>
+      {/* Formulaire */}
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5 rounded-xl border border-slate-700 bg-slate-900/70 p-5 shadow-md"
+      >
+        {error && (
+          <div className="rounded-lg border border-red-500/70 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+            {error}
+          </div>
+        )}
 
-        <label className="form-control">
-          <span className="label-text">Discipline</span>
-          <input
-            className="input input-bordered"
-            value={discipline_sportive}
-            onChange={(e) => setDiscipline(e.target.value)}
-            required
-          />
-        </label>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-300 mb-1">
+              Nom de l&apos;événement *
+            </label>
+            <input
+              type="text"
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              className="w-full rounded-lg border border-slate-600 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
 
-        <label className="form-control">
-          <span className="label-text">Date</span>
-          <input
-            type="date"
-            className="input input-bordered"
-            value={date_evenement}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
-        </label>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-300 mb-1">
+              Discipline sportive *
+            </label>
+            <input
+              type="text"
+              value={discipline}
+              onChange={(e) => setDiscipline(e.target.value)}
+              className="w-full rounded-lg border border-slate-600 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
+        </div>
 
-        <label className="form-control">
-          <span className="label-text">Lieu</span>
-          <input
-            className="input input-bordered"
-            value={lieu_evenement}
-            onChange={(e) => setLieu(e.target.value)}
-            required
-          />
-        </label>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-300 mb-1">
+              Date de l&apos;événement *
+            </label>
+            <input
+              type="date"
+              value={dateEvenement}
+              onChange={(e) => setDateEvenement(e.target.value)}
+              className="w-full rounded-lg border border-slate-600 bg-slate-950/60 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
 
-        <label className="form-control">
-          <span className="label-text">Description</span>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-300 mb-1">
+              Lieu *
+            </label>
+            <input
+              type="text"
+              value={lieu}
+              onChange={(e) => setLieu(e.target.value)}
+              className="w-full rounded-lg border border-slate-600 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-300 mb-1">
+            Description (optionnelle)
+          </label>
           <textarea
-            className="textarea textarea-bordered"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
+            className="w-full rounded-lg border border-slate-600 bg-slate-950/60 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
           />
-        </label>
+        </div>
 
-        <div className="flex gap-3">
-          <button className="btn btn-primary" type="submit" disabled={!canSubmit || saving}>
-            {saving ? <span className="loading loading-spinner" /> : "Enregistrer"}
-          </button>
-          <button type="button" className="btn" onClick={() => navigate(-1)}>
+        <div className="flex justify-end gap-3 pt-2">
+          <Link
+            to="/admin/evenements"
+            className="rounded-full border border-slate-500 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800/70"
+          >
             Annuler
+          </Link>
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-amber-400 text-slate-950 px-5 py-2 text-sm font-semibold uppercase tracking-wide shadow-md hover:shadow-lg disabled:opacity-60"
+          >
+            {saving ? "Enregistrement..." : "Enregistrer les modifications"}
           </button>
         </div>
       </form>
     </div>
   );
-}
+};
+
+export default EventAdminEdit;

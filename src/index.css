@@ -13,7 +13,7 @@
 /* 3) Tes règles CSS normales */
 html,
 body {
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: sans-serif,'Roboto', system-ui, "Inter", ;
   background-color: hsl(var(--b1, 0 0% 100%));
   color: hsl(var(--bc, 0 0% 0%));
   margin: 0;

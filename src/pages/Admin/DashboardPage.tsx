@@ -1,325 +1,346 @@
 // src/pages/Admin/DashboardPage.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import useAdminStats from "@/features/admin/hooks/useAdminStats";
-import useAdminUsers from "@/features/admin/hooks/useAdminUsers";
-import useAdminEvents from "@/features/admin/hooks/useAdminEvents";
-import useAdminOffers from "@/features/admin/hooks/useAdminOffers";
-import { formatCurrency, formatDateTime, formatNumber } from "@/utils/format";
+import api from "@/api/axiosClient";
 
-export default function DashboardPage() {
-  // Stats globales + tops
-  const {
-    global,
-    topOffersByRevenue,
-    topOffersBySales,
-    loading: statsLoading,
-    reload: reloadStats,
-  } = useAdminStats();
+type OverviewStats = {
+  nb_evenements?: number;
+  nb_offres?: number;
+  nb_commandes?: number;
+  nb_utilisateurs?: number;
+  chiffre_affaires?: number; // en euros
+};
 
-  // Compteurs rapides
-  const {
-    list: usersList,
-    loading: usersLoading,
-    reload: reloadUsers,
-  } = useAdminUsers();
+const DashboardPage: React.FC = () => {
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const {
-    list: eventsList,
-    loading: eventsLoading,
-    reload: reloadEvents,
-  } = useAdminEvents();
-
-  const {
-    list: offersList,
-    loading: offersLoading,
-    reload: reloadOffers,
-  } = useAdminOffers();
-
-  const [initialLoad, setInitialLoad] = useState(true);
-
+  // Chargement des stats globales (si ton backend expose /stats/overview/)
   useEffect(() => {
-    void Promise.all([
-      reloadStats(),
-      reloadUsers(),
-      reloadEvents(),
-      reloadOffers(),
-    ]).finally(() => setInitialLoad(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let mounted = true;
+
+    async function fetchStats() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // 🔁 Adapte l’URL si ton backend utilise une autre route
+        const { data } = await api.get<OverviewStats>("/stats/overview/");
+        if (!mounted) return;
+        setStats(data);
+      } catch (err) {
+        console.error("Erreur chargement stats overview :", err);
+        if (!mounted) return;
+        // On ne bloque pas le dashboard si ça échoue
+        setError(
+          "Certaines statistiques ne sont pas disponibles pour le moment."
+        );
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    fetchStats();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const totalUsers = usersList?.count ?? 0;
-  const totalEvents = eventsList?.count ?? 0;
-  const totalOffers = offersList?.count ?? 0;
-
-  const g = global ?? {
-    ventes_totales: 0,
-    chiffre_affaires_total: "0",
-    derniere_maj: null as string | null,
+  const formatNumber = (value: number | undefined) => {
+    if (value === undefined || value === null) return "--";
+    return value.toLocaleString("fr-FR");
   };
 
-  const busy =
-    initialLoad || statsLoading || usersLoading || eventsLoading || offersLoading;
-
-  const topRev = useMemo(
-    () => (topOffersByRevenue ?? []).slice(0, 5),
-    [topOffersByRevenue]
-  );
-  const topSales = useMemo(
-    () => (topOffersBySales ?? []).slice(0, 5),
-    [topOffersBySales]
-  );
+  const formatCurrency = (value: number | undefined) => {
+    if (value === undefined || value === null) return "--";
+    return value.toLocaleString("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    });
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl md:text-3xl font-bold">Tableau de bord</h1>
-        <div className="flex gap-2">
-          <button
-            className="btn btn-outline"
-            onClick={() =>
-              Promise.all([
-                reloadStats(),
-                reloadUsers(),
-                reloadEvents(),
-                reloadOffers(),
-              ])
-            }
-            disabled={busy}
-          >
-            {busy ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              "Actualiser"
-            )}
-          </button>
-          <Link className="btn" to="/admin/stats">
-            Voir les statistiques détaillées
-          </Link>
+    <div className="space-y-8">
+      {/* ==== En-tête ==== */}
+      <header className="space-y-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-white">
+          Tableau de bord administrateur
+        </h1>
+        <p className="text-sm md:text-base text-slate-300 max-w-2xl">
+          Supervise la billetterie des Jeux Olympiques : épreuves, offres,
+          commandes et utilisateurs. Ce tableau de bord regroupe les accès aux
+          principaux écrans de gestion (CRUD) et un résumé des statistiques.
+        </p>
+      </header>
+
+      {/* ==== Alerte éventuelle sur les stats ==== */}
+      {error && (
+        <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
+          {error}
         </div>
-      </div>
+      )}
 
-      {/* Cartes KPI */}
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard
-          title="Chiffre d’affaires"
-          value={formatCurrency(Number(g.chiffre_affaires_total || 0))}
-          subtitle={
-            g.derniere_maj
-              ? `MAJ : ${formatDateTime(g.derniere_maj)}`
-              : "—"
-          }
-          icon="💶"
-          loading={busy}
-        />
-        <KpiCard
-          title="Ventes totales"
-          value={formatNumber(g.ventes_totales)}
-          subtitle="Billets générés"
-          icon="🎫"
-          loading={busy}
-        />
-        <KpiCard
-          title="Offres publiées"
-          value={formatNumber(totalOffers)}
-          subtitle={
-            <Link className="link" to="/admin/offers">
-              Gérer les offres
-            </Link>
-          }
-          icon="🧩"
-          loading={busy}
-        />
-        <KpiCard
-          title="Utilisateurs"
-          value={formatNumber(totalUsers)}
-          subtitle={
-            <Link className="link" to="/admin/users">
-              Gérer les utilisateurs
-            </Link>
-          }
-          icon="👥"
-          loading={busy}
-        />
-      </section>
-
-      {/* Top listes */}
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <CardTable
-          title="Top offres — Chiffre d’affaires"
-          cols={["Offre", "CA", "Ventes"]}
-          loading={busy}
-          emptyLabel="Aucune donnée"
-          rows={topRev.map((o) => [
-            <Link
-              key={`r-${o.offre_id}`}
-              to={`/admin/offers?focus=${o.offre_id}`}
-              className="link"
-            >
-              {o.offre_nom ?? `Offre #${o.offre_id}`}
-            </Link>,
-            formatCurrency(Number(o.chiffre_affaires || 0)),
-            formatNumber(o.nombre_ventes || 0),
-          ])}
-        />
-        <CardTable
-          title="Top offres — Volume de ventes"
-          cols={["Offre", "Ventes", "CA"]}
-          loading={busy}
-          emptyLabel="Aucune donnée"
-          rows={topSales.map((o) => [
-            <Link
-              key={`s-${o.offre_id}`}
-              to={`/admin/offers?focus=${o.offre_id}`}
-              className="link"
-            >
-              {o.offre_nom ?? `Offre #${o.offre_id}`}
-            </Link>,
-            formatNumber(o.nombre_ventes || 0),
-            formatCurrency(Number(o.chiffre_affaires || 0)),
-          ])}
-        />
-      </section>
-
-      {/* Derniers éléments */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CardTable
-          title="Derniers événements créés"
-          cols={["Nom", "Date", "Lieu", "Actions"]}
-          loading={busy}
-          emptyLabel="Aucun événement"
-          rows={(eventsList?.results ?? []).slice(0, 5).map((ev) => [
-            ev.nom,
-            ev.date_evenement ? formatDateTime(ev.date_evenement) : "—",
-            ev.lieu_evenement ?? "—",
-            <Link
-              key={`e-${ev.id}`}
-              to={`/admin/events/${ev.id}/edit`}
-              className="btn btn-xs"
-            >
-              Ouvrir
-            </Link>,
-          ])}
-        />
-        <CardTable
-          title="Dernières offres créées"
-          cols={["Nom", "Prix", "Stock", "Actions"]}
-          loading={busy}
-          emptyLabel="Aucune offre"
-          rows={(offersList?.results ?? []).slice(0, 5).map((of) => [
-            of.nom_offre,
-            formatCurrency(Number(of.prix || 0)),
-            formatNumber(of.stock_disponible ?? 0),
-            <Link
-              key={`o-${of.id}`}
-              to={`/admin/offers/${of.id}/edit`}
-              className="btn btn-xs"
-            >
-              Ouvrir
-            </Link>,
-          ])}
-        />
-      </section>
-    </div>
-  );
-}
-
-/* =================================================================== */
-/* UI helpers */
-/* =================================================================== */
-
-function KpiCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  loading,
-}: {
-  title: string;
-  value: string | number;
-  subtitle?: React.ReactNode;
-  icon?: string;
-  loading?: boolean;
-}) {
-  return (
-    <div className="card bg-base-100 shadow-sm">
-      <div className="card-body">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm opacity-70">{title}</p>
-            <p className="text-2xl md:text-3xl font-bold mt-1">
-              {loading ? "…" : value}
+      {/* ==== Bloc 1 : Vue d’ensemble / chiffres clés ==== */}
+      <section>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">
+          Vue d&apos;ensemble de la billetterie
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {/* Événements */}
+          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Épreuves
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
+                Catalogue
+              </span>
+            </div>
+            <div className="text-3xl font-bold text-white">
+              {loading ? "…" : formatNumber(stats?.nb_evenements)}
+            </div>
+            <p className="text-xs text-slate-400">
+              Nombre total d&apos;épreuves configurées dans la billetterie.
             </p>
-            {subtitle && (
-              <p className="text-xs opacity-60 mt-1">{subtitle}</p>
-            )}
+            <Link
+              to="/admin/evenements"
+              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
+            >
+              Gérer les événements →
+            </Link>
           </div>
-          <div className="text-3xl">{icon}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function CardTable({
-  title,
-  cols,
-  rows,
-  loading,
-  emptyLabel = "Aucune donnée",
-}: {
-  title: string;
-  cols: string[];
-  rows: React.ReactNode[][];
-  loading?: boolean;
-  emptyLabel?: string;
-}) {
-  return (
-    <div className="card bg-base-100 shadow">
-      <div className="card-body p-0">
-        <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-          <h2 className="card-title">{title}</h2>
+          {/* Offres */}
+          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Offres
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
+                Tarifs
+              </span>
+            </div>
+            <div className="text-3xl font-bold text-white">
+              {loading ? "…" : formatNumber(stats?.nb_offres)}
+            </div>
+            <p className="text-xs text-slate-400">
+              Formules Solo, Duo, Famille et autres packs disponibles.
+            </p>
+            <Link
+              to="/admin/offres"
+              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
+            >
+              Gérer les offres →
+            </Link>
+          </div>
+
+          {/* Commandes */}
+          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Commandes
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
+                Ventes
+              </span>
+            </div>
+            <div className="text-3xl font-bold text-white">
+              {loading ? "…" : formatNumber(stats?.nb_commandes)}
+            </div>
+            <p className="text-xs text-slate-400">
+              Nombre de commandes enregistrées sur la plateforme.
+            </p>
+            <Link
+              to="/admin/commandes"
+              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
+            >
+              Voir les commandes →
+            </Link>
+          </div>
+
+          {/* Utilisateurs & CA */}
+          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Utilisateurs & CA
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
+                Synthèse
+              </span>
+            </div>
+            <div className="flex items-baseline gap-3">
+              <div>
+                <div className="text-3xl font-bold text-white">
+                  {loading ? "…" : formatNumber(stats?.nb_utilisateurs)}
+                </div>
+                <p className="text-xs text-slate-400">comptes créés</p>
+              </div>
+              <div className="ml-auto text-right">
+                <div className="text-sm font-semibold text-emerald-300">
+                  {loading ? "…" : formatCurrency(stats?.chiffre_affaires)}
+                </div>
+                <p className="text-xs text-slate-400">
+                  chiffre d&apos;affaires total
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/admin/utilisateurs"
+              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
+            >
+              Gérer les utilisateurs →
+            </Link>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                {cols.map((c) => (
-                  <th key={c}>{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={cols.length}>
-                    <div className="flex justify-center py-10">
-                      <span className="loading loading-spinner loading-lg" />
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {!loading && rows.length === 0 && (
-                <tr>
-                  <td colSpan={cols.length}>
-                    <div className="alert">
-                      <span>{emptyLabel}</span>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                rows.map((r, i) => (
-                  <tr key={i}>
-                    {r.map((cell, j) => (
-                      <td key={`${i}-${j}`}>{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+      </section>
+
+      {/* ==== Bloc 2 : Espace CRUD par domaine ==== */}
+      <section>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">
+          Espace de gestion (CRUD)
+        </h2>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {/* CRUD Utilisateurs */}
+          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  Gestion des utilisateurs
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Comptes clients et administrateurs, type de compte, activités.
+                </p>
+              </div>
+              <span className="text-xl">👥</span>
+            </div>
+
+            <ul className="text-xs text-slate-300 space-y-1 mt-1">
+              <li>• Consultation de tous les comptes</li>
+              <li>• Détail d&apos;un utilisateur</li>
+              <li>• Vérification des droits (CLIENT / ADMIN)</li>
+            </ul>
+
+            <div className="mt-auto flex flex-col gap-1 pt-2">
+              <Link
+                to="/admin/utilisateurs"
+                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
+              >
+                Ouvrir la liste des utilisateurs →
+              </Link>
+            </div>
+          </div>
+
+          {/* CRUD Événements */}
+          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  Gestion des épreuves
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Configuration des événements : date, lieu, discipline.
+                </p>
+              </div>
+              <span className="text-xl">🏟️</span>
+            </div>
+
+            <ul className="text-xs text-slate-300 space-y-1 mt-1">
+              <li>• Créer / modifier / supprimer une épreuve</li>
+              <li>• Lier les épreuves aux offres de billetterie</li>
+            </ul>
+
+            <div className="mt-auto flex flex-col gap-1 pt-2">
+              <Link
+                to="/admin/evenements"
+                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
+              >
+                Voir toutes les épreuves →
+              </Link>
+              <Link
+                to="/admin/evenements/nouveau"
+                className="text-xs text-amber-300 group-hover:text-amber-200 underline underline-offset-2"
+              >
+                Créer une nouvelle épreuve →
+              </Link>
+            </div>
+          </div>
+
+          {/* CRUD Offres */}
+          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  Gestion des offres
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Tarifs, stocks, type d&apos;offre (Solo, Duo, Famille…).
+                </p>
+              </div>
+              <span className="text-xl">🎟️</span>
+            </div>
+
+            <ul className="text-xs text-slate-300 space-y-1 mt-1">
+              <li>• Créer / modifier / supprimer une offre</li>
+              <li>• Contrôler les stocks disponibles</li>
+              <li>• Définir les périodes de vente</li>
+            </ul>
+
+            <div className="mt-auto flex flex-col gap-1 pt-2">
+              <Link
+                to="/admin/offres"
+                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
+              >
+                Voir toutes les offres →
+              </Link>
+              <Link
+                to="/admin/offres/nouveau"
+                className="text-xs text-amber-300 group-hover:text-amber-200 underline underline-offset-2"
+              >
+                Créer une nouvelle offre →
+              </Link>
+            </div>
+          </div>
+
+          {/* CRUD / Stats / Commandes */}
+          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-white">
+                  Statistiques & commandes
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Analyse des ventes et suivi des commandes clients.
+                </p>
+              </div>
+              <span className="text-xl">📊</span>
+            </div>
+
+            <ul className="text-xs text-slate-300 space-y-1 mt-1">
+              <li>• Visualiser les commandes et leur statut</li>
+              <li>• Accéder aux statistiques détaillées</li>
+            </ul>
+
+            <div className="mt-auto flex flex-col gap-1 pt-2">
+              <Link
+                to="/admin/commandes"
+                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
+              >
+                Suivi des commandes →
+              </Link>
+              <Link
+                to="/admin/stats"
+                className="text-xs text-emerald-300 group-hover:text-emerald-200 underline underline-offset-2"
+              >
+                Ouvrir les statistiques détaillées →
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
-}
+};
+
+export default DashboardPage;

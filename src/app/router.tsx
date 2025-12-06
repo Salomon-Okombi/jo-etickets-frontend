@@ -107,7 +107,7 @@ export const router = createBrowserRouter([
         ),
         children: [
           // Dashboard
-          { index: true, element: <DashboardPage /> },
+          { path: "DashboardPage", element: <DashboardPage /> },
 
           // Gestion événements
           { path: "evenements", element: <EventsAdminListPage /> },
@@ -130,6 +130,8 @@ export const router = createBrowserRouter([
 
       // ========= 404 =========
       { path: "*", element: <NotFoundPage /> },
+      { path: "DashboardPage", element: <DashboardPage /> }
+
     ],
   },
 ]);

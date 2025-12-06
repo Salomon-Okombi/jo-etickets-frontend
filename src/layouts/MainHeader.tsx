@@ -1,16 +1,25 @@
+// src/layouts/MainHeader.tsx
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import useAuth from "@/hooks/useAuth"; // ⬅️ import via alias (et default)
 
 const MainHeader: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const navLinks = [
+  // Est-ce que l'utilisateur connecté est admin ?
+  const isAdmin = isAuthenticated && user?.type_compte === "ADMIN";
+
+  const baseNavLinks = [
     { to: "/", label: "Accueil" },
     { to: "/evenements", label: "Événements" },
     { to: "/offres", label: "Offres" },
   ];
+
+  // On ajout Dashboard uniquement pour l'admin
+  const navLinks = isAdmin
+    ? [...baseNavLinks, { to: "/Dashboard", label: "Dashboard" }]
+    : baseNavLinks;
 
   const handleLogout = () => {
     logout?.();
@@ -58,12 +67,14 @@ const MainHeader: React.FC = () => {
               <span className="main-header__welcome">
                 Bonjour, <strong>{user?.username || user?.email}</strong>
               </span>
+
               <Link
                 to="/mon-espace/commandes"
                 className="main-header__action-link"
               >
                 Mon espace
               </Link>
+
               <button
                 type="button"
                 className="main-header__cta main-header__cta--outline"

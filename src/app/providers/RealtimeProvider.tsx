@@ -10,7 +10,6 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import useAuth from "@/hooks/useAuth";
 
 type RealtimeStatus = "disconnected" | "connecting" | "connected";
 
@@ -29,18 +28,26 @@ interface RealtimeContextType {
   subscribe: (type: string, handler: Subscriber) => () => void;
 }
 
-// 🔹 Contexte exporté
 export const RealtimeContext = createContext<RealtimeContextType | undefined>(
   undefined
 );
 
 type Props = {
   children: ReactNode;
+  /**
+   * URL WebSocket complète ou chemin.
+   * Exemples :
+   *   - "ws://127.0.0.1:8000/ws/"
+   *   - "/ws/"
+   *   - si rien n’est passé : on utilise VITE_WS_URL ou "/ws/"
+   */
   url?: string;
   heartbeatMs?: number;
   autoReconnect?: boolean;
   maxReconnectDelayMs?: number;
 };
+
+const DEFAULT_WS_PATH = "/ws/"; // 👈 même route que dans notifications.routing
 
 export default function RealtimeProvider({
   children,
@@ -49,28 +56,33 @@ export default function RealtimeProvider({
   autoReconnect = true,
   maxReconnectDelayMs = 15000,
 }: Props) {
-  const { token } = useAuth();
+  // 🔸 Pour l’instant, on n’utilise pas de token dans l’URL
+  // const { token } = useAuth();
 
-  // URL WebSocket construite à partir de l’env ou du paramètre
+  /**
+   * Construction de l’URL WebSocket :
+   * 1. prop `url`
+   * 2. VITE_WS_URL
+   * 3. fallback "/ws/"
+   */
   const wsUrl = useMemo(() => {
-    const base = url ?? import.meta.env.VITE_WS_URL ?? "";
-
-    if (!base) return "";
+    const base =
+      url ??
+      import.meta.env.VITE_WS_URL ??
+      DEFAULT_WS_PATH;
 
     try {
+      // Si base est déjà une URL absolue (ws://, wss://, http://...), on la garde
       const u = new URL(base);
-      if (token) u.searchParams.set("token", token);
       return u.toString();
     } catch {
+      // Sinon, on la considère comme un chemin sur le même host
       const proto = window.location.protocol === "https:" ? "wss" : "ws";
       const host = window.location.host;
       const path = base.startsWith("/") ? base : `/${base}`;
-      const full = `${proto}://${host}${path}${
-        token ? `?token=${encodeURIComponent(token)}` : ""
-      }`;
-      return full;
+      return `${proto}://${host}${path}`;
     }
-  }, [token, url]);
+  }, [url]);
 
   const [status, setStatus] = useState<RealtimeStatus>("disconnected");
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
@@ -107,22 +119,6 @@ export default function RealtimeProvider({
       }
     }, heartbeatMs) as unknown as number;
   };
-
-  const scheduleReconnect = useCallback(() => {
-    if (!autoReconnect) return;
-    if (isUnmountedRef.current) return;
-
-    const attempt = reconnectAttemptRef.current++;
-    const delay = Math.min(1000 * 2 ** attempt, maxReconnectDelayMs);
-
-    if (reconnectRef.current !== null) {
-      window.clearTimeout(reconnectRef.current);
-    }
-
-    reconnectRef.current = window.setTimeout(() => {
-      openSocket();
-    }, delay) as unknown as number;
-  }, [autoReconnect, maxReconnectDelayMs]);
 
   const cleanupSocket = useCallback(() => {
     clearHeartbeat();
@@ -175,10 +171,26 @@ export default function RealtimeProvider({
     }
   }, []);
 
+  const scheduleReconnect = useCallback(() => {
+    if (!autoReconnect) return;
+    if (isUnmountedRef.current) return;
+
+    const attempt = reconnectAttemptRef.current++;
+    const delay = Math.min(1000 * 2 ** attempt, maxReconnectDelayMs);
+
+    if (reconnectRef.current !== null) {
+      window.clearTimeout(reconnectRef.current);
+    }
+
+    reconnectRef.current = window.setTimeout(() => {
+      openSocket();
+    }, delay) as unknown as number;
+  }, [autoReconnect, maxReconnectDelayMs]);
+
   const openSocket = useCallback(() => {
     if (!wsUrl) {
       setStatus("disconnected");
-      setError("Aucune URL WebSocket configurée (VITE_WS_URL).");
+      setError("Aucune URL WebSocket valide.");
       return;
     }
 
@@ -232,23 +244,26 @@ export default function RealtimeProvider({
     }
   }, []);
 
-  const subscribe = useCallback<RealtimeContextType["subscribe"]>((type, handler) => {
-    const map = subsRef.current;
-    if (!map.has(type)) {
-      map.set(type, new Set());
-    }
-    const set = map.get(type)!;
-    set.add(handler);
+  const subscribe = useCallback<RealtimeContextType["subscribe"]>(
+    (type, handler) => {
+      const map = subsRef.current;
+      if (!map.has(type)) {
+        map.set(type, new Set());
+      }
+      const set = map.get(type)!;
+      set.add(handler);
 
-    return () => {
-      const s = map.get(type);
-      if (!s) return;
-      s.delete(handler);
-      if (s.size === 0) map.delete(type);
-    };
-  }, []);
+      return () => {
+        const s = map.get(type);
+        if (!s) return;
+        s.delete(handler);
+        if (s.size === 0) map.delete(type);
+      };
+    },
+    []
+  );
 
-  // (Re)connexion quand token ou URL WS change
+  // (Re)connexion quand l’URL WS change
   useEffect(() => {
     if (!wsUrl) {
       setStatus("disconnected");
@@ -293,7 +308,11 @@ export default function RealtimeProvider({
     [status, connectedAt, lastMessage, error, send, subscribe]
   );
 
-  return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
+  return (
+    <RealtimeContext.Provider value={value}>
+      {children}
+    </RealtimeContext.Provider>
+  );
 }
 
 /** Hook pratique pour consommer le contexte */

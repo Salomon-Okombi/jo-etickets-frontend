@@ -18,7 +18,7 @@ interface LocationState {
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, setUser } = useAuth();
+  const { isAuthenticated, setUser, user } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,16 +26,24 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from =
-    (location.state as LocationState | undefined)?.from ||
-    "/mon-espace/commandes";
+  // "from" vient d'une redirection (AdminRoute / PrivateRoute)
+  const from = (location.state as LocationState | undefined)?.from || null;
 
-  // Si déjà connecté → on redirige tout de suite
+  // Si déjà connecté et on vient sur /login, on redirige selon le rôle
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isAuthenticated || !user) return;
+
+    if (from) {
       navigate(from, { replace: true });
+      return;
     }
-  }, [isAuthenticated, from, navigate]);
+
+    if (user.type_compte === "ADMIN") {
+      navigate("/admin", { replace: true });
+    } else {
+      navigate("/mon-espace/commandes", { replace: true });
+    }
+  }, [isAuthenticated, user, from, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,12 +67,27 @@ const LoginPage: React.FC = () => {
       try {
         const profile = await getProfile();
         setUser(profile);
+
+        // 4. Décider où aller après login
+        let target: string;
+
+        if (from) {
+          // On respecte la route d'origine si elle existe
+          target = from;
+        } else if (profile.type_compte === "ADMIN") {
+          // Admin → dashboard CRUD
+          target = "/admin";
+        } else {
+          // Client → commandes
+          target = "/mon-espace/commandes";
+        }
+
+        navigate(target, { replace: true });
       } catch (profileError) {
         console.error("Impossible de charger le profil après login :", profileError);
+        // Si le profil ne charge pas, on envoie quand même vers les commandes
+        navigate("/mon-espace/commandes", { replace: true });
       }
-
-      // 4. Redirection vers la page d’origine ou l’espace client
-      navigate(from, { replace: true });
     } catch (err) {
       console.error(err);
       setError(
@@ -135,7 +158,7 @@ const LoginPage: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="auth-form__input"
-                  placeholder="ex : jean.dupont"
+                  placeholder="Votre nom d'utilisateur"
                 />
               </div>
 
