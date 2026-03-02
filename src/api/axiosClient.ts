@@ -31,7 +31,7 @@ const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api").r
 
 /** Endpoint de refresh JWT (adaptable si besoin) */
 const REFRESH_ENDPOINT =
-  import.meta.env.VITE_JWT_REFRESH_URL ?? "/token/refresh/";
+  import.meta.env.VITE_JWT_REFRESH_URL ?? "/utilisateurs/token/refresh/";
 
 /** Clé utilisée dans localStorage pour stocker les tokens JWT */
 const AUTH_STORAGE_KEY = "auth_tokens";

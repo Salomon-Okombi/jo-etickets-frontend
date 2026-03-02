@@ -1,14 +1,23 @@
 // src/layouts/MainHeader.tsx
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import useAuth from "@/hooks/useAuth"; // ⬅️ import via alias (et default)
+import useAuth from "@/hooks/useAuth";
+
+function isAdminUser(profile: any): boolean {
+  return (
+    profile?.type_compte === "ADMIN" ||
+    profile?.is_staff === true ||
+    profile?.is_superuser === true
+  );
+}
 
 const MainHeader: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Est-ce que l'utilisateur connecté est admin ?
-  const isAdmin = isAuthenticated && user?.type_compte === "ADMIN";
+  const isAdmin = isAuthenticated && isAdminUser(user);
+
+  const mySpaceLink = isAdmin ? "/admin" : "/mon-espace/commandes";
 
   const baseNavLinks = [
     { to: "/", label: "Accueil" },
@@ -16,9 +25,8 @@ const MainHeader: React.FC = () => {
     { to: "/offres", label: "Offres" },
   ];
 
-  // On ajout Dashboard uniquement pour l'admin
   const navLinks = isAdmin
-    ? [...baseNavLinks, { to: "/Dashboard", label: "Dashboard" }]
+    ? [...baseNavLinks, { to: "/admin", label: "Dashboard" }]
     : baseNavLinks;
 
   const handleLogout = () => {
@@ -31,7 +39,6 @@ const MainHeader: React.FC = () => {
   return (
     <header className="main-header">
       <div className="main-header__inner">
-        {/* Logo */}
         <Link to="/" className="main-header__logo" onClick={closeMobileMenu}>
           <div className="main-header__logo-mark">JO</div>
           <div className="main-header__logo-text">
@@ -40,7 +47,6 @@ const MainHeader: React.FC = () => {
           </div>
         </Link>
 
-        {/* Navigation desktop */}
         <nav className="main-header__nav main-header__nav--desktop">
           {navLinks.map((link) => (
             <NavLink
@@ -60,7 +66,6 @@ const MainHeader: React.FC = () => {
           ))}
         </nav>
 
-        {/* Actions + burger */}
         <div className="main-header__actions">
           {isAuthenticated ? (
             <>
@@ -69,8 +74,9 @@ const MainHeader: React.FC = () => {
               </span>
 
               <Link
-                to="/mon-espace/commandes"
+                to={mySpaceLink}
                 className="main-header__action-link"
+                onClick={closeMobileMenu}
               >
                 Mon espace
               </Link>
@@ -89,7 +95,7 @@ const MainHeader: React.FC = () => {
                 Se connecter
               </Link>
               <Link to="/register" className="main-header__cta">
-                S&apos;inscrire
+                S'inscrire
               </Link>
             </>
           )}
@@ -108,7 +114,6 @@ const MainHeader: React.FC = () => {
         </div>
       </div>
 
-      {/* Menu mobile */}
       <div
         className={`main-header__mobile-nav ${
           isMobileMenuOpen ? "main-header__mobile-nav--open" : ""
@@ -138,7 +143,7 @@ const MainHeader: React.FC = () => {
             {isAuthenticated ? (
               <>
                 <Link
-                  to="/mon-espace/commandes"
+                  to={mySpaceLink}
                   className="main-header__action-link main-header__action-link--mobile"
                   onClick={closeMobileMenu}
                 >
@@ -166,7 +171,7 @@ const MainHeader: React.FC = () => {
                   className="main-header__cta main-header__cta--full"
                   onClick={closeMobileMenu}
                 >
-                  S&apos;inscrire
+                  S'inscrire
                 </Link>
               </>
             )}

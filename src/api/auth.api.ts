@@ -9,23 +9,6 @@ export interface JwtPair {
 
 export type AccountType = "CLIENT" | "ADMIN";
 
-// 🔐 Clés de stockage local
-export const ACCESS_TOKEN_KEY = "access_token";
-export const REFRESH_TOKEN_KEY = "refresh_token";
-
-// 🔑 Login → renvoie { access, refresh }
-export async function loginUser(
-  username: string,
-  password: string
-): Promise<JwtPair> {
-  const { data } = await api.post<JwtPair>("/utilisateurs/token/", {
-    username,
-    password,
-  });
-  return data;
-}
-
-// 📝 Register → renvoie (en général) l'utilisateur créé
 export interface RegisterPayload {
   username: string;
   email: string;
@@ -33,51 +16,65 @@ export interface RegisterPayload {
   type_compte: AccountType;
 }
 
+// Je garde la même clé que axiosClient.ts (AUTH_STORAGE_KEY = "auth_tokens")
+export const AUTH_STORAGE_KEY = "auth_tokens";
+
+/* -----------------------------
+   Auth endpoints
+------------------------------ */
+
+// Je récupère access/refresh
+export async function loginUser(username: string, password: string): Promise<JwtPair> {
+  const { data } = await api.post<JwtPair>("/utilisateurs/token/", { username, password });
+  return data;
+}
+
+// Je crée un compte
 export async function registerUser(payload: RegisterPayload): Promise<User> {
-  // ✅ URL alignée sur la collection Postman
   const { data } = await api.post<User>("/utilisateurs/register/", payload);
   return data;
 }
 
-// 👤 Profil courant
+// Je récupère le profil connecté
 export async function getProfile(): Promise<User> {
-  // ✅ URL alignée sur "Mon Profil (GET)" dans Postman
   const { data } = await api.get<User>("/utilisateurs/me/");
   return data;
 }
 
-/* ------------------------------------------------------------------
-   Helpers de gestion des tokens + header Authorization
------------------------------------------------------------------- */
+/* -----------------------------
+   Token storage helpers
+------------------------------ */
 
+// Je stocke les tokens sous la forme attendue par axiosClient.ts
 export function storeTokens(tokens: JwtPair) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
-  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
-  api.defaults.headers.common["Authorization"] = `Bearer ${tokens.access}`;
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokens));
 }
 
+// Je relis les tokens depuis localStorage
 export function getStoredTokens(): JwtPair | null {
-  const access = localStorage.getItem(ACCESS_TOKEN_KEY);
-  const refresh = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!access || !refresh) return null;
-  return { access, refresh };
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.access === "string" && typeof parsed?.refresh === "string") {
+      return parsed as JwtPair;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
+// Je supprime les tokens
 export function clearStoredTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  delete api.defaults.headers.common["Authorization"];
+  localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 /**
- * À appeler au démarrage de l’app (dans l’AuthProvider) pour :
- * - relire les tokens en localStorage
- * - reposer le header Authorization si possible
+ * Je l’utilise au démarrage (AuthProvider) pour :
+ * - vérifier si des tokens existent déjà
+ * - laisser axiosClient.ts injecter Authorization via son interceptor
  */
 export function initAuthFromStorage(): JwtPair | null {
-  const tokens = getStoredTokens();
-  if (tokens?.access) {
-    api.defaults.headers.common["Authorization"] = `Bearer ${tokens.access}`;
-  }
-  return tokens;
+  return getStoredTokens();
 }

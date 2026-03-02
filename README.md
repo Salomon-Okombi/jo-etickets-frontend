@@ -1,5 +1,5 @@
 # React + TypeScript + Vite
-
+# RUN SERVER : npm run dev
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
@@ -71,3 +71,54 @@ export default defineConfig([
   },
 ])
 ```
+
+1️⃣ Installer Node.js (et npm)
+
+Va sur le site officiel : https://nodejs.org/fr/
+
+Télécharge la version LTS (recommandée pour la stabilité, ex: 20.x.x)
+
+Lance l’installateur :
+
+Coche “Add to PATH” pendant l’installation !
+
+Tu peux laisser les autres options par défaut.
+
+Termine l’installation.
+
+2️⃣ Vérifier que Node.js et npm sont bien installés
+
+Après l’installation, ferme PowerShell et rouvre-le pour que les nouvelles variables PATH soient prises en compte.
+
+Tape :
+
+node -v
+npm -v
+
+Tu devrais voir quelque chose comme :
+
+v20.3.1
+9.8.1
+
+✅ Si oui, Node et npm sont prêts.
+
+3️⃣ Installer les dépendances du frontend
+
+Dans ton dossier frontend :
+
+cd C:\Users\bsokombi\Documents\JO-etickets\frontend
+npm install
+
+Ça va créer le dossier node_modules et installer toutes les librairies nécessaires.
+
+4️⃣ Lancer le serveur de développement
+
+Toujours dans le dossier frontend :
+
+npm start
+
+ou si ton package.json utilise dev :
+
+npm run dev
+
+Le terminal devrait afficher l’URL locale (souvent http://localhost:3000), que tu peux ouvrir dans ton navigateur pour voir ton frontend.

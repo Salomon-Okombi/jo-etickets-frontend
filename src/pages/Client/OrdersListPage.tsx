@@ -14,7 +14,7 @@ export default function TicketsListPage() {
     setLoading(true);
     try {
       const res = await listTickets();
-      setTickets(res.results ?? []); // ✅ on prend seulement le tableau
+      setTickets(res.results ?? []); 
     } catch {
       showToast("Impossible de charger les billets.", "error");
     } finally {

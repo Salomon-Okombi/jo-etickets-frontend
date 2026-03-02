@@ -1,22 +1,21 @@
-// src/app/App.tsx
 import React, { Suspense } from "react";
 import { RouterProvider } from "react-router-dom";
-import { router } from "./router";
+import router from "@/app/router";
 import UIProvider from "./providers/UIProvider";
 import AuthProvider from "./providers/AuthProvider";
 import RealtimeProvider from "./providers/RealtimeProvider";
 
 const App: React.FC = () => {
   return (
-    <UIProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <UIProvider>
         <RealtimeProvider>
           <Suspense fallback={<div className="p-6">Chargement…</div>}>
             <RouterProvider router={router} />
           </Suspense>
         </RealtimeProvider>
-      </AuthProvider>
-    </UIProvider>
+      </UIProvider>
+    </AuthProvider>
   );
 };
 

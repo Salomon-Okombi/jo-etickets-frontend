@@ -1,23 +1,52 @@
 // src/pages/Auth/LoginPage.tsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  loginUser,
-  type JwtPair,
-  storeTokens,
-  getProfile,
-} from "@/api/auth.api";
-import { useAuth } from "@/hooks/useAuth";
+import { loginUser, type JwtPair, storeTokens, getProfile } from "@/api/auth.api";
+import { normalizeUser } from "@/utils/authNormalize";
+import useAuth from "@/hooks/useAuth";
 
-interface LocationState {
-  from?: string;
-  eventId?: number;
-  selectedOfferId?: number;
+type LocationState =
+  | {
+      from?: string | { pathname?: string };
+      eventId?: number;
+      selectedOfferId?: number;
+    }
+  | undefined;
+
+function resolveFromPath(state: LocationState): string | null {
+  // Je récupère "from" quel que soit son format (string ou objet location).
+  if (!state || !state.from) return null;
+  if (typeof state.from === "string") return state.from;
+  if (typeof state.from === "object" && state.from.pathname) return state.from.pathname;
+  return null;
+}
+
+function isAdminProfile(profile: any): boolean {
+  // Je considère admin si type_compte=ADMIN ou si les flags Django admin sont actifs.
+  return (
+    profile?.type_compte === "ADMIN" ||
+    profile?.is_staff === true ||
+    profile?.is_superuser === true
+  );
+}
+
+function pickPostLoginTarget(profile: any, fromPath: string | null): string {
+  // Je verrouille la règle :
+  // - admin -> /admin (je respecte from uniquement si from commence par /admin)
+  // - client -> from (si présent) sinon /mon-espace/commandes
+  const admin = isAdminProfile(profile);
+
+  if (admin) {
+    return fromPath?.startsWith("/admin") ? fromPath : "/admin";
+  }
+
+  return fromPath ?? "/mon-espace/commandes";
 }
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const { isAuthenticated, setUser, user } = useAuth();
 
   const [username, setUsername] = useState("");
@@ -26,24 +55,20 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // "from" vient d'une redirection (AdminRoute / PrivateRoute)
-  const from = (location.state as LocationState | undefined)?.from || null;
+  const fromPath = useMemo(
+    () => resolveFromPath(location.state as LocationState),
+    [location.state]
+  );
 
-  // Si déjà connecté et on vient sur /login, on redirige selon le rôle
   useEffect(() => {
+    // Si déjà connecté et ouverture manuelle de /login, je redirige selon le profil en mémoire.
     if (!isAuthenticated || !user) return;
 
-    if (from) {
-      navigate(from, { replace: true });
-      return;
-    }
-
-    if (user.type_compte === "ADMIN") {
-      navigate("/admin", { replace: true });
-    } else {
-      navigate("/mon-espace/commandes", { replace: true });
-    }
-  }, [isAuthenticated, user, from, navigate]);
+    // Je normalise aussi ici au cas où le profil en mémoire contient 0/1.
+    const normalized = normalizeUser(user as any);
+    const target = pickPostLoginTarget(normalized, fromPath);
+    navigate(target, { replace: true });
+  }, [isAuthenticated, user, fromPath, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,42 +82,33 @@ const LoginPage: React.FC = () => {
     try {
       setLoading(true);
 
-      // 1. Récupérer les tokens
+      // 1) Je récupère le couple access/refresh
       const tokens: JwtPair = await loginUser(username.trim(), password);
 
-      // 2. Stocker les tokens + poser le header Authorization
+      // 2) Je stocke les tokens (axiosClient.ts les relit via auth_tokens et injecte Authorization)
       storeTokens(tokens);
 
-      // 3. Charger le profil utilisateur et le mettre dans le contexte
-      try {
-        const profile = await getProfile();
-        setUser(profile);
+      // 3) Je récupère le profil via /utilisateurs/me/
+      const rawProfile = await getProfile();
 
-        // 4. Décider où aller après login
-        let target: string;
+      // 4) Je normalise le profil pour convertir 0/1 en true/false (cas classique avec Django)
+      const profile = normalizeUser(rawProfile as any);
 
-        if (from) {
-          // On respecte la route d'origine si elle existe
-          target = from;
-        } else if (profile.type_compte === "ADMIN") {
-          // Admin → dashboard CRUD
-          target = "/admin";
-        } else {
-          // Client → commandes
-          target = "/mon-espace/commandes";
-        }
+      // 5) Je garde un log utile pendant la mise au point (à retirer quand tout est stable)
+      console.log("LOGIN: profile normalisé =", profile);
+      console.log("LOGIN: fromPath =", fromPath);
 
-        navigate(target, { replace: true });
-      } catch (profileError) {
-        console.error("Impossible de charger le profil après login :", profileError);
-        // Si le profil ne charge pas, on envoie quand même vers les commandes
-        navigate("/mon-espace/commandes", { replace: true });
-      }
+      // 6) Je stocke le profil dans le contexte global
+      setUser(profile as any);
+
+      // 7) Je décide la destination uniquement à partir du profil normalisé
+      const target = pickPostLoginTarget(profile, fromPath);
+      console.log("LOGIN: cible =", target);
+
+      navigate(target, { replace: true });
     } catch (err) {
-      console.error(err);
-      setError(
-        "Échec de la connexion. Vérifiez votre nom d’utilisateur et votre mot de passe."
-      );
+      console.error("LOGIN: erreur =", err);
+      setError("Échec de la connexion. Vérifiez le nom d’utilisateur et le mot de passe.");
     } finally {
       setLoading(false);
     }
@@ -101,44 +117,28 @@ const LoginPage: React.FC = () => {
   return (
     <div className="auth-page">
       <div className="auth-page__inner">
-        {/* Bloc gauche : texte / branding */}
         <section className="auth-page__intro">
           <div className="auth-page__logo">
             <div className="auth-page__logo-mark">JO</div>
             <div className="auth-page__logo-text">
               <span className="auth-page__logo-title">Paris 2024</span>
-              <span className="auth-page__logo-subtitle">
-                Billetterie e-Tickets
-              </span>
+              <span className="auth-page__logo-subtitle">Billetterie e-Tickets</span>
             </div>
           </div>
 
           <h1 className="auth-page__title">
-            Connexion à votre espace
-            <span>billetterie JO Paris 2024</span>
+            Connexion à l’espace billetterie
+            <span>JO Paris 2024</span>
           </h1>
 
           <p className="auth-page__text">
-            Accédez à vos paniers, commandes et e-billets sécurisés. Votre
-            compte vous permet de retrouver toutes vos réservations pour les
-            Jeux Olympiques Paris 2024.
+            Accès aux paniers, commandes et e-billets sécurisés.
           </p>
-
-          <ul className="auth-page__bullets">
-            <li>Suivi de vos commandes et paiements</li>
-            <li>Consultation et téléchargement de vos e-billets</li>
-            <li>Accès rapide à vos informations personnelles</li>
-          </ul>
         </section>
 
-        {/* Bloc droit : formulaire de login */}
         <section className="auth-page__panel">
           <div className="auth-card">
             <h2 className="auth-card__title">Se connecter</h2>
-            <p className="auth-card__subtitle">
-              Identifiez-vous avec votre nom d’utilisateur et votre mot de
-              passe choisis lors de la création du compte.
-            </p>
 
             {error && (
               <div className="auth-card__alert">
@@ -158,7 +158,6 @@ const LoginPage: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="auth-form__input"
-                  placeholder="Votre nom d'utilisateur"
                 />
               </div>
 
@@ -173,16 +172,11 @@ const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="auth-form__input"
-                  placeholder="Votre mot de passe sécurisé"
                 />
               </div>
 
               <div className="auth-form__footer">
-                <button
-                  type="submit"
-                  className="auth-form__submit"
-                  disabled={loading}
-                >
+                <button type="submit" className="auth-form__submit" disabled={loading}>
                   {loading ? "Connexion en cours..." : "Se connecter"}
                 </button>
               </div>
@@ -198,10 +192,7 @@ const LoginPage: React.FC = () => {
             </div>
           </div>
 
-          <p className="auth-page__security">
-            🔐 Sécurité : votre accès est protégé. Pour toute connexion
-            suspecte, changez immédiatement votre mot de passe.
-          </p>
+          <p className="auth-page__security">🔐 Sécurité : accès protégé.</p>
         </section>
       </div>
     </div>

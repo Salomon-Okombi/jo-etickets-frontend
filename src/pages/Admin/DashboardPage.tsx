@@ -1,346 +1,444 @@
-// src/pages/Admin/DashboardPage.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "@/api/axiosClient";
+import { api } from "@/api/axiosClient";
+import "@/styles/admin.css";
+
+/* =========================================================================
+   Dashboard Admin (billetterie)
+   - KPI : synthèse rapide
+   - Table : tickets/réservations (priorité visuelle)
+   - Accès rapides : STATISTIQUES / UTILISATEURS / OFFRES / ÉVÉNEMENTS
+   ========================================================================= */
 
 type OverviewStats = {
   nb_evenements?: number;
   nb_offres?: number;
   nb_commandes?: number;
+  nb_tickets?: number;
   nb_utilisateurs?: number;
-  chiffre_affaires?: number; // en euros
+  chiffre_affaires?: number;
 };
 
-const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState<OverviewStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type TicketStatus = "VALIDE" | "UTILISE" | "ANNULE" | "EXPIRE";
 
-  // Chargement des stats globales (si ton backend expose /stats/overview/)
+type Ticket = {
+  id: number;
+  numero_billet: string;
+  utilisateur: number;
+  utilisateur_nom?: string;
+  offre: number;
+  offre_nom?: string;
+  qr_code: string;
+  prix_paye: string;
+  statut: TicketStatus;
+  date_achat?: string;
+};
+
+type Paginated<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
+function formatNumber(value?: number) {
+  if (value === undefined || value === null) return "—";
+  return value.toLocaleString("fr-FR");
+}
+
+function formatCurrency(value?: number) {
+  if (value === undefined || value === null) return "—";
+  return value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
+
+function asQrSrc(qr: string) {
+  if (!qr) return "";
+  if (qr.startsWith("data:image")) return qr;
+  return `data:image/png;base64,${qr}`;
+}
+
+function statusBadgeClass(statut: TicketStatus) {
+  if (statut === "VALIDE") return "admin-badge admin-badge--ok";
+  if (statut === "UTILISE") return "admin-badge admin-badge--warn";
+  if (statut === "ANNULE") return "admin-badge admin-badge--danger";
+  return "admin-badge";
+}
+
+function KpiCard(props: {
+  label: string;
+  value: string;
+  hint: string;
+  linkTo?: string;
+  linkLabel?: string;
+}) {
+  return (
+    <div className="admin-kpi-card">
+      <div className="admin-kpi-card__label">{props.label}</div>
+      <div className="admin-kpi-card__value">{props.value}</div>
+      <div className="admin-kpi-card__hint">{props.hint}</div>
+
+      {props.linkTo && props.linkLabel ? (
+        <div style={{ marginTop: "0.7rem" }}>
+          <Link className="admin-btn" to={props.linkTo}>
+            {props.linkLabel}
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [errorStats, setErrorStats] = useState<string | null>(null);
+
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketsCount, setTicketsCount] = useState(0);
+  const [loadingTickets, setLoadingTickets] = useState(true);
+  const [errorTickets, setErrorTickets] = useState<string | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Recherche : saisie immédiate + search effectif (debounce)
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  // Modal QR
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrModalTitle, setQrModalTitle] = useState("");
+  const [qrModalSrc, setQrModalSrc] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput.trim());
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   useEffect(() => {
     let mounted = true;
 
-    async function fetchStats() {
+    async function fetchOverview() {
       try {
-        setLoading(true);
-        setError(null);
-
-        // 🔁 Adapte l’URL si ton backend utilise une autre route
+        setLoadingStats(true);
+        setErrorStats(null);
         const { data } = await api.get<OverviewStats>("/stats/overview/");
         if (!mounted) return;
         setStats(data);
       } catch (err) {
-        console.error("Erreur chargement stats overview :", err);
+        console.error("Dashboard: stats overview error =", err);
         if (!mounted) return;
-        // On ne bloque pas le dashboard si ça échoue
-        setError(
-          "Certaines statistiques ne sont pas disponibles pour le moment."
-        );
+        setErrorStats("Statistiques indisponibles pour le moment.");
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setLoadingStats(false);
       }
     }
 
-    fetchStats();
+    fetchOverview();
     return () => {
       mounted = false;
     };
   }, []);
 
-  const formatNumber = (value: number | undefined) => {
-    if (value === undefined || value === null) return "--";
-    return value.toLocaleString("fr-FR");
-  };
+  useEffect(() => {
+    let mounted = true;
 
-  const formatCurrency = (value: number | undefined) => {
-    if (value === undefined || value === null) return "--";
-    return value.toLocaleString("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-    });
-  };
+    async function fetchTickets() {
+      try {
+        setLoadingTickets(true);
+        setErrorTickets(null);
+
+        const params: any = { page, page_size: pageSize };
+        if (search) params.search = search;
+
+        const { data } = await api.get<Paginated<Ticket>>("/billets/", { params });
+        if (!mounted) return;
+
+        setTickets(data.results);
+        setTicketsCount(data.count);
+      } catch (err) {
+        console.error("Dashboard: tickets error =", err);
+        if (!mounted) return;
+        setErrorTickets("Chargement des tickets impossible.");
+      } finally {
+        if (mounted) setLoadingTickets(false);
+      }
+    }
+
+    fetchTickets();
+    return () => {
+      mounted = false;
+    };
+  }, [page, pageSize, search]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(ticketsCount / pageSize)),
+    [ticketsCount, pageSize]
+  );
+
+  const reservationsTotal = useMemo(() => {
+    return stats?.nb_tickets ?? ticketsCount ?? 0;
+  }, [stats?.nb_tickets, ticketsCount]);
+
+  const showError = errorStats ?? errorTickets;
+
+  function openQrModal(ticket: Ticket) {
+    setQrModalTitle(`QR Code — Billet ${ticket.numero_billet}`);
+    setQrModalSrc(asQrSrc(ticket.qr_code));
+    setQrModalOpen(true);
+  }
+
+  function closeQrModal() {
+    setQrModalOpen(false);
+    setQrModalTitle("");
+    setQrModalSrc("");
+  }
+
+  function copyText(text: string) {
+    navigator.clipboard.writeText(text);
+  }
 
   return (
-    <div className="space-y-8">
-      {/* ==== En-tête ==== */}
-      <header className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">
-          Tableau de bord administrateur
-        </h1>
-        <p className="text-sm md:text-base text-slate-300 max-w-2xl">
-          Supervise la billetterie des Jeux Olympiques : épreuves, offres,
-          commandes et utilisateurs. Ce tableau de bord regroupe les accès aux
-          principaux écrans de gestion (CRUD) et un résumé des statistiques.
-        </p>
-      </header>
-
-      {/* ==== Alerte éventuelle sur les stats ==== */}
-      {error && (
-        <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
-          {error}
+    <div className="admin-page">
+      {/* Titre */}
+      <div style={{ marginBottom: "1.2rem" }}>
+        <div className="admin-title">Tableau de bord</div>
+        <div className="admin-subtitle">
+          Synthèse + suivi des réservations (tickets émis) avec accès rapide aux modules principaux.
         </div>
-      )}
+      </div>
 
-      {/* ==== Bloc 1 : Vue d’ensemble / chiffres clés ==== */}
-      <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">
-          Vue d&apos;ensemble de la billetterie
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {/* Événements */}
-          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                Épreuves
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
-                Catalogue
-              </span>
+      {/* Alerte accessible */}
+      {showError ? <div className="admin-alert" role="alert">{showError}</div> : null}
+
+      {/* KPI (discrets, utiles) */}
+      <div style={{ marginTop: "1rem" }} className="admin-kpi-grid">
+        <KpiCard
+          label="Épreuves"
+          value={loadingStats ? "…" : formatNumber(stats?.nb_evenements)}
+          hint="Catalogue des événements sportifs."
+          linkTo="/admin/evenements"
+          linkLabel="Ouvrir"
+        />
+        <KpiCard
+          label="Offres"
+          value={loadingStats ? "…" : formatNumber(stats?.nb_offres)}
+          hint="Packs et tarification."
+          linkTo="/admin/offres"
+          linkLabel="Ouvrir"
+        />
+        <KpiCard
+          label="Réservations"
+          value={loadingStats ? "…" : formatNumber(reservationsTotal)}
+          hint="Nombre total de billets émis."
+          linkTo="/admin/dashboard"
+          linkLabel="Voir"
+        />
+        <KpiCard
+          label="Chiffre d’affaires"
+          value={loadingStats ? "…" : formatCurrency(stats?.chiffre_affaires)}
+          hint="Total ventes billetterie."
+          linkTo="/admin/stats"
+          linkLabel="Analyser"
+        />
+      </div>
+
+      {/* ACCÈS RAPIDES (prioritaires) */}
+      <section style={{ marginTop: "1.6rem" }}>
+        <div className="admin-table-title">Modules principaux</div>
+        <div style={{ marginTop: "0.85rem" }} className="admin-crud-grid">
+          <div className="admin-crud-card">
+            <div className="admin-crud-title">STATISTIQUES</div>
+            <div className="admin-crud-desc">Analyse ventes, CA, tendances, top offres.</div>
+            <div className="admin-crud-footer">
+              <Link to="/admin/stats" className="admin-crud-link">Ouvrir →</Link>
             </div>
-            <div className="text-3xl font-bold text-white">
-              {loading ? "…" : formatNumber(stats?.nb_evenements)}
-            </div>
-            <p className="text-xs text-slate-400">
-              Nombre total d&apos;épreuves configurées dans la billetterie.
-            </p>
-            <Link
-              to="/admin/evenements"
-              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
-            >
-              Gérer les événements →
-            </Link>
           </div>
 
-          {/* Offres */}
-          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                Offres
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
-                Tarifs
-              </span>
+          <div className="admin-crud-card">
+            <div className="admin-crud-title">UTILISATEURS</div>
+            <div className="admin-crud-desc">Comptes, statuts, détails, suivi.</div>
+            <div className="admin-crud-footer">
+              <Link to="/admin/utilisateurs" className="admin-crud-link">Ouvrir →</Link>
             </div>
-            <div className="text-3xl font-bold text-white">
-              {loading ? "…" : formatNumber(stats?.nb_offres)}
-            </div>
-            <p className="text-xs text-slate-400">
-              Formules Solo, Duo, Famille et autres packs disponibles.
-            </p>
-            <Link
-              to="/admin/offres"
-              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
-            >
-              Gérer les offres →
-            </Link>
           </div>
 
-          {/* Commandes */}
-          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                Commandes
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
-                Ventes
-              </span>
+          <div className="admin-crud-card">
+            <div className="admin-crud-title">OFFRES</div>
+            <div className="admin-crud-desc">Tarifs, quotas, activation/désactivation.</div>
+            <div className="admin-crud-footer">
+              <Link to="/admin/offres" className="admin-crud-link">Ouvrir →</Link>
             </div>
-            <div className="text-3xl font-bold text-white">
-              {loading ? "…" : formatNumber(stats?.nb_commandes)}
-            </div>
-            <p className="text-xs text-slate-400">
-              Nombre de commandes enregistrées sur la plateforme.
-            </p>
-            <Link
-              to="/admin/commandes"
-              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
-            >
-              Voir les commandes →
-            </Link>
           </div>
 
-          {/* Utilisateurs & CA */}
-          <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900/80 to-slate-900 p-4 shadow-sm flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                Utilisateurs & CA
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">
-                Synthèse
-              </span>
+          <div className="admin-crud-card">
+            <div className="admin-crud-title">ÉVÉNEMENTS</div>
+            <div className="admin-crud-desc">Épreuves, dates, lieux, capacité.</div>
+            <div className="admin-crud-footer">
+              <Link to="/admin/evenements" className="admin-crud-link">Ouvrir →</Link>
             </div>
-            <div className="flex items-baseline gap-3">
-              <div>
-                <div className="text-3xl font-bold text-white">
-                  {loading ? "…" : formatNumber(stats?.nb_utilisateurs)}
-                </div>
-                <p className="text-xs text-slate-400">comptes créés</p>
-              </div>
-              <div className="ml-auto text-right">
-                <div className="text-sm font-semibold text-emerald-300">
-                  {loading ? "…" : formatCurrency(stats?.chiffre_affaires)}
-                </div>
-                <p className="text-xs text-slate-400">
-                  chiffre d&apos;affaires total
-                </p>
-              </div>
-            </div>
-            <Link
-              to="/admin/utilisateurs"
-              className="mt-auto text-xs text-pink-300 hover:text-pink-200 underline underline-offset-2"
-            >
-              Gérer les utilisateurs →
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* ==== Bloc 2 : Espace CRUD par domaine ==== */}
-      <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">
-          Espace de gestion (CRUD)
-        </h2>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {/* CRUD Utilisateurs */}
-          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-white">
-                  Gestion des utilisateurs
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Comptes clients et administrateurs, type de compte, activités.
-                </p>
-              </div>
-              <span className="text-xl">👥</span>
-            </div>
-
-            <ul className="text-xs text-slate-300 space-y-1 mt-1">
-              <li>• Consultation de tous les comptes</li>
-              <li>• Détail d&apos;un utilisateur</li>
-              <li>• Vérification des droits (CLIENT / ADMIN)</li>
-            </ul>
-
-            <div className="mt-auto flex flex-col gap-1 pt-2">
-              <Link
-                to="/admin/utilisateurs"
-                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
-              >
-                Ouvrir la liste des utilisateurs →
-              </Link>
+      {/* TABLE (mise en avant) */}
+      <div className="admin-table-wrap" style={{ marginTop: "1.6rem" }}>
+        <div className="admin-table-head">
+          <div>
+            <div className="admin-table-title">Tickets / Réservations</div>
+            <div style={{ color: "rgba(255,255,255,0.62)", fontSize: "0.85rem", marginTop: "0.15rem" }}>
+              Recherche + consultation des QR Codes.
             </div>
           </div>
 
-          {/* CRUD Événements */}
-          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-white">
-                  Gestion des épreuves
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Configuration des événements : date, lieu, discipline.
-                </p>
+          <div className="admin-table-tools">
+            <input
+              className="admin-input"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Recherche (n° billet, utilisateur, offre)"
+            />
+
+            <select
+              className="admin-select"
+              value={pageSize}
+              onChange={(e) => {
+                setPage(1);
+                setPageSize(Number(e.target.value));
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+
+            <button
+              className="admin-btn"
+              onClick={() => {
+                setPage(1);
+                setSearch(searchInput.trim());
+              }}
+            >
+              Appliquer
+            </button>
+          </div>
+        </div>
+
+        {loadingTickets ? (
+          <div style={{ padding: "1.1rem 1rem", color: "rgba(255,255,255,0.72)" }}>Chargement…</div>
+        ) : tickets.length === 0 ? (
+          <div style={{ padding: "1.1rem 1rem", color: "rgba(255,255,255,0.72)" }}>Aucun ticket trouvé.</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Utilisateur</th>
+                  <th>Offre</th>
+                  <th className="admin-td-center">QR</th>
+                  <th>Statut</th>
+                  <th className="admin-td-right">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {tickets.map((t) => (
+                  <tr key={t.id}>
+                    <td>{t.numero_billet || t.id}</td>
+                    <td>{t.utilisateur_nom ?? `Utilisateur #${t.utilisateur}`}</td>
+                    <td>{t.offre_nom ?? `Offre #${t.offre}`}</td>
+
+                    <td className="admin-td-center">
+                      {t.qr_code ? (
+                        <button className="admin-btn" onClick={() => openQrModal(t)} style={{ padding: "0.35rem 0.75rem" }}>
+                          QR
+                        </button>
+                      ) : (
+                        <span className="admin-td-muted">—</span>
+                      )}
+                    </td>
+
+                    <td>
+                      <span className={statusBadgeClass(t.statut)}>{t.statut}</span>
+                    </td>
+
+                    <td className="admin-td-right">
+                      <Link className="admin-btn" to={`/mon-espace/billets/${t.id}`} style={{ marginRight: "0.4rem" }}>
+                        Détails
+                      </Link>
+
+                      <button className="admin-btn" onClick={() => copyText(t.numero_billet)} style={{ marginRight: "0.4rem" }}>
+                        Copier n°
+                      </button>
+
+                      {t.qr_code ? (
+                        <button className="admin-btn" onClick={() => copyText(asQrSrc(t.qr_code))}>
+                          Copier QR
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="admin-table-footer">
+              <div className="admin-table-footer__text">
+                {ticketsCount.toLocaleString("fr-FR")} ticket(s) — page {page} / {totalPages}
               </div>
-              <span className="text-xl">🏟️</span>
-            </div>
 
-            <ul className="text-xs text-slate-300 space-y-1 mt-1">
-              <li>• Créer / modifier / supprimer une épreuve</li>
-              <li>• Lier les épreuves aux offres de billetterie</li>
-            </ul>
-
-            <div className="mt-auto flex flex-col gap-1 pt-2">
-              <Link
-                to="/admin/evenements"
-                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
-              >
-                Voir toutes les épreuves →
-              </Link>
-              <Link
-                to="/admin/evenements/nouveau"
-                className="text-xs text-amber-300 group-hover:text-amber-200 underline underline-offset-2"
-              >
-                Créer une nouvelle épreuve →
-              </Link>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button
+                  className="admin-btn"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  ←
+                </button>
+                <button
+                  className="admin-btn"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  →
+                </button>
+              </div>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* CRUD Offres */}
-          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-white">
-                  Gestion des offres
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Tarifs, stocks, type d&apos;offre (Solo, Duo, Famille…).
-                </p>
-              </div>
-              <span className="text-xl">🎟️</span>
+      {/* Modal QR */}
+      {qrModalOpen ? (
+        <div className="admin-modal-overlay" role="dialog" aria-modal="true" onClick={closeQrModal}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal__header">
+              <div className="admin-modal__title">{qrModalTitle}</div>
+              <button className="admin-btn" onClick={closeQrModal}>Fermer</button>
             </div>
 
-            <ul className="text-xs text-slate-300 space-y-1 mt-1">
-              <li>• Créer / modifier / supprimer une offre</li>
-              <li>• Contrôler les stocks disponibles</li>
-              <li>• Définir les périodes de vente</li>
-            </ul>
-
-            <div className="mt-auto flex flex-col gap-1 pt-2">
-              <Link
-                to="/admin/offres"
-                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
-              >
-                Voir toutes les offres →
-              </Link>
-              <Link
-                to="/admin/offres/nouveau"
-                className="text-xs text-amber-300 group-hover:text-amber-200 underline underline-offset-2"
-              >
-                Créer une nouvelle offre →
-              </Link>
-            </div>
-          </div>
-
-          {/* CRUD / Stats / Commandes */}
-          <div className="group rounded-xl border border-slate-700 bg-slate-900/80 p-4 flex flex-col gap-3 hover:border-pink-400/80 hover:bg-slate-900 transition-colors">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-white">
-                  Statistiques & commandes
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Analyse des ventes et suivi des commandes clients.
-                </p>
-              </div>
-              <span className="text-xl">📊</span>
+            <div className="admin-modal__body">
+              {qrModalSrc ? (
+                <img className="admin-modal__qr" src={qrModalSrc} alt="QR Code" />
+              ) : (
+                <div style={{ color: "rgba(255,255,255,0.65)" }}>QR indisponible</div>
+              )}
             </div>
 
-            <ul className="text-xs text-slate-300 space-y-1 mt-1">
-              <li>• Visualiser les commandes et leur statut</li>
-              <li>• Accéder aux statistiques détaillées</li>
-            </ul>
-
-            <div className="mt-auto flex flex-col gap-1 pt-2">
-              <Link
-                to="/admin/commandes"
-                className="text-xs text-pink-300 group-hover:text-pink-200 underline underline-offset-2"
-              >
-                Suivi des commandes →
-              </Link>
-              <Link
-                to="/admin/stats"
-                className="text-xs text-emerald-300 group-hover:text-emerald-200 underline underline-offset-2"
-              >
-                Ouvrir les statistiques détaillées →
-              </Link>
+            <div className="admin-modal__footer">
+              {qrModalSrc ? (
+                <button className="admin-btn" onClick={() => copyText(qrModalSrc)}>
+                  Copier QR
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
-      </section>
+      ) : null}
     </div>
   );
-};
-
-export default DashboardPage;
+}

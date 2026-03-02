@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // Layouts
 import MainLayout from "@/layouts/MainLayout";
@@ -31,6 +31,7 @@ import TicketDetailPage from "@/pages/Client/TicketDetailPage";
 
 // Pages – Admin
 import DashboardPage from "@/pages/Admin/DashboardPage";
+
 import EventsAdminListPage from "@/pages/Admin/Events/EventsAdminList";
 import EventAdminCreatePage from "@/pages/Admin/Events/EventAdminCreate";
 import EventAdminEditPage from "@/pages/Admin/Events/EventAdminEdit";
@@ -51,27 +52,23 @@ export const router = createBrowserRouter([
     path: "/",
     element: <MainLayout />,
     children: [
-      // ========= ZONE PUBLIQUE =========
+      // ===================== ZONE PUBLIQUE =====================
       {
         element: <PublicLayout />,
         children: [
-          // Accueil
           { index: true, element: <HomePage /> },
 
-          // Événements publics
           { path: "evenements", element: <EventsListPage /> },
           { path: "evenements/:id", element: <EventDetailPage /> },
 
-          // Offres publiques (Solo / Duo / Famille)
           { path: "offres", element: <PublicOffersListPage /> },
 
-          // Auth
           { path: "login", element: <LoginPage /> },
           { path: "register", element: <RegisterPage /> },
         ],
       },
 
-      // ========= ZONE CLIENT (MON ESPACE) =========
+      // ===================== ZONE CLIENT (MON ESPACE) =====================
       {
         path: "mon-espace",
         element: (
@@ -80,24 +77,23 @@ export const router = createBrowserRouter([
           </PrivateRoute>
         ),
         children: [
-          // Panier & paiement
+          // Je redirige /mon-espace -> /mon-espace/commandes
+          { index: true, element: <Navigate to="commandes" replace /> },
+
           { path: "panier", element: <CartPage /> },
           { path: "checkout", element: <CheckoutPage /> },
 
-          // Offres côté client (si tu veux un écran spécifique)
           { path: "offres", element: <ClientOffersListPage /> },
 
-          // Commandes
           { path: "commandes", element: <OrdersListPage /> },
           { path: "commandes/:id", element: <OrderDetailPage /> },
 
-          // Billets (e-tickets)
           { path: "billets", element: <TicketsListPage /> },
           { path: "billets/:id", element: <TicketDetailPage /> },
         ],
       },
 
-      // ========= ZONE ADMIN =========
+      // ===================== ZONE ADMIN =====================
       {
         path: "admin",
         element: (
@@ -106,32 +102,33 @@ export const router = createBrowserRouter([
           </AdminRoute>
         ),
         children: [
-          // Dashboard
-          { path: "DashboardPage", element: <DashboardPage /> },
+          // Je définis le dashboard comme page par défaut de /admin
+          { index: true, element: <DashboardPage /> },
 
-          // Gestion événements
+          // Je garde aussi une URL explicite /admin/dashboard
+          { path: "dashboard", element: <DashboardPage /> },
+
           { path: "evenements", element: <EventsAdminListPage /> },
           { path: "evenements/nouveau", element: <EventAdminCreatePage /> },
           { path: "evenements/:id", element: <EventAdminEditPage /> },
 
-          // Gestion offres
           { path: "offres", element: <OffersAdminListPage /> },
           { path: "offres/nouvelle", element: <OfferAdminCreatePage /> },
           { path: "offres/:id", element: <OfferAdminEditPage /> },
 
-          // Stats
           { path: "stats", element: <StatsPage /> },
 
-          // Utilisateurs
           { path: "utilisateurs", element: <UsersAdminListPage /> },
           { path: "utilisateurs/:id", element: <UserAdminDetailPage /> },
         ],
       },
 
-      // ========= 404 =========
-      { path: "*", element: <NotFoundPage /> },
-      { path: "DashboardPage", element: <DashboardPage /> }
+      // ===================== Alias pratique =====================
+      // Je permets /dashboard -> /admin
+      { path: "dashboard", element: <Navigate to="/admin" replace /> },
 
+      // ===================== 404 =====================
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);
