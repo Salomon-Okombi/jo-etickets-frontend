@@ -44,6 +44,11 @@ import StatsPage from "@/pages/Admin/Stats/StatsPage";
 import UsersAdminListPage from "@/pages/Admin/Users/UsersAdminList";
 import UserAdminDetailPage from "@/pages/Admin/Users/UserAdminDetail";
 
+// ✅ NOUVEAUX : Admin Billets + Admin Commandes
+// Assure-toi que ces fichiers existent bien aux emplacements indiqués
+import BilletsAdminListPage from "@/pages/Admin/Billets/BilletsAdminListPage";
+import OrdersAdminListPage from "@/pages/Admin/Orders/OrdersAdminListPage";
+
 // 404
 import NotFoundPage from "@/pages/NotFoundPage";
 
@@ -77,7 +82,7 @@ export const router = createBrowserRouter([
           </PrivateRoute>
         ),
         children: [
-          // Je redirige /mon-espace -> /mon-espace/commandes
+          // /mon-espace -> /mon-espace/commandes
           { index: true, element: <Navigate to="commandes" replace /> },
 
           { path: "panier", element: <CartPage /> },
@@ -102,29 +107,41 @@ export const router = createBrowserRouter([
           </AdminRoute>
         ),
         children: [
-          // Je définis le dashboard comme page par défaut de /admin
+          // Dashboard par défaut
           { index: true, element: <DashboardPage /> },
-
-          // Je garde aussi une URL explicite /admin/dashboard
           { path: "dashboard", element: <DashboardPage /> },
 
+          // ✅ Commandes (Admin)
+          { path: "commandes", element: <OrdersAdminListPage /> },
+          // Alias pratique : /admin/orders -> /admin/commandes
+          { path: "orders", element: <Navigate to="/admin/commandes" replace /> },
+
+          // ✅ Billets / Tickets (Admin)
+          { path: "billets", element: <BilletsAdminListPage /> },
+          // Alias pratique : /admin/tickets -> /admin/billets
+          { path: "tickets", element: <Navigate to="/admin/billets" replace /> },
+
+          // Events (Admin)
           { path: "evenements", element: <EventsAdminListPage /> },
           { path: "evenements/nouveau", element: <EventAdminCreatePage /> },
           { path: "evenements/:id", element: <EventAdminEditPage /> },
 
+          // Offres (Admin)
           { path: "offres", element: <OffersAdminListPage /> },
           { path: "offres/nouvelle", element: <OfferAdminCreatePage /> },
           { path: "offres/:id", element: <OfferAdminEditPage /> },
 
+          // Stats (Admin)
           { path: "stats", element: <StatsPage /> },
 
+          // Users (Admin)
           { path: "utilisateurs", element: <UsersAdminListPage /> },
           { path: "utilisateurs/:id", element: <UserAdminDetailPage /> },
         ],
       },
 
       // ===================== Alias pratique =====================
-      // Je permets /dashboard -> /admin
+      // /dashboard -> /admin
       { path: "dashboard", element: <Navigate to="/admin" replace /> },
 
       // ===================== 404 =====================
