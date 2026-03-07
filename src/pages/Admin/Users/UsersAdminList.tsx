@@ -1,187 +1,217 @@
-// src/pages/Admin/Users/UsersAdminList.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import useAdminUsers, { type AdminUser } from "@/features/admin/hooks/useAdminUsers";
-import { formatDateTime } from "@/utils/format";
+import { listUsers } from "@/api/users.api";
+import type { User } from "@/types/users";
+import "@/styles/admin.css";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZES = [10, 20, 50] as const;
+
+function formatDate(value?: string) {
+  if (!value) return "—";
+  try {
+    return new Date(value).toLocaleString("fr-FR");
+  } catch {
+    return value;
+  }
+}
+
+function badgeType(t?: string) {
+  const v = (t ?? "").toUpperCase();
+  if (v.includes("ADMIN")) return "admin-badge admin-badge--warn";
+  if (v.includes("CLIENT")) return "admin-badge admin-badge--muted";
+  return "admin-badge admin-badge--muted";
+}
+
+function badgeStatut(s?: string) {
+  const v = (s ?? "").toUpperCase();
+  if (v.includes("ACTIF")) return "admin-badge admin-badge--ok";
+  if (v.includes("INACTIF")) return "admin-badge admin-badge--danger";
+  return "admin-badge admin-badge--muted";
+}
 
 export default function UsersAdminList() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [q, setQ] = useState(searchParams.get("q") ?? "");
+
   const page = Number(searchParams.get("page") ?? 1) || 1;
+  const pageSize = Number(searchParams.get("page_size") ?? 20) || 20;
+  const q = searchParams.get("q") ?? "";
 
-  // ⬅️ on récupère `list`, pas `items`
-  const { list, loading, error, reload } = useAdminUsers();
+  const [input, setInput] = useState(q);
 
-  // tableau brut issu de l’API
-  const items: AdminUser[] = list?.results ?? [];
+  const [items, setItems] = useState<User[]>([]);
+  const [count, setCount] = useState(0);
 
-  // Recharge la liste une fois au montage
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => setInput(q), [q]);
+
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    const controller = new AbortController();
 
-  // Filtrage côté front
-  const filtered: AdminUser[] = useMemo(() => {
-    if (!q) return items;
-    const needle = q.toLowerCase();
-    return items.filter((u) => {
-      const username = u.username?.toLowerCase() ?? "";
-      const email = u.email?.toLowerCase() ?? "";
-      return username.includes(needle) || email.includes(needle);
-    });
-  }, [items, q]);
+    async function fetchUsers() {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const totalCount = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+        const data = await listUsers({
+          page,
+          page_size: pageSize,
+          search: q.trim() || undefined,
+        });
 
-  const pageItems: AdminUser[] = useMemo(() => {
-    const safePage = Math.min(Math.max(1, page), totalPages);
-    const start = (safePage - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, page, totalPages]);
+        if (controller.signal.aborted) return;
 
-  function onSearch(e: React.FormEvent) {
-    e.preventDefault();
+        setItems(data.results);
+        setCount(data.count);
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 401) setError("Non authentifié (401). Connecte-toi.");
+        else if (status === 403) setError("Accès refusé (403). Tu n'es pas admin (is_staff requis).");
+        else if (status === 404) setError("Endpoint introuvable (404). Vérifie /api/utilisateurs/.");
+        else setError("Chargement des utilisateurs impossible.");
+        console.error("UsersAdminList error:", err);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    fetchUsers();
+    return () => controller.abort();
+  }, [page, pageSize, q]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(count / pageSize)), [count, pageSize]);
+  const safePage = useMemo(() => Math.min(Math.max(1, page), totalPages), [page, totalPages]);
+
+  function setParam(next: { page?: number; q?: string; page_size?: number }) {
     const sp = new URLSearchParams(searchParams);
-    if (q) sp.set("q", q);
+
+    const nextQ = (next.q ?? q).trim();
+    const nextPage = next.page ?? page;
+    const nextSize = next.page_size ?? pageSize;
+
+    if (nextQ) sp.set("q", nextQ);
     else sp.delete("q");
-    sp.set("page", "1");
+
+    sp.set("page", String(nextPage));
+    sp.set("page_size", String(nextSize));
     setSearchParams(sp);
   }
 
-  function goTo(p: number) {
-    const safe = Math.min(Math.max(1, p), totalPages);
-    const sp = new URLSearchParams(searchParams);
-    sp.set("page", String(safe));
-    if (q) sp.set("q", q);
-    else sp.delete("q");
-    setSearchParams(sp);
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setParam({ q: input, page: 1 });
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl md:text-3xl font-bold">Utilisateurs — Administration</h1>
-        <button className="btn btn-outline" onClick={() => reload()} disabled={loading}>
-          {loading ? <span className="loading loading-spinner loading-xs" /> : "Actualiser"}
-        </button>
+    <div className="admin-page">
+      <div style={{ marginBottom: "1.2rem" }}>
+        <div className="admin-title">Utilisateurs</div>
+        <div className="admin-subtitle">
+          Liste admin : username, email, type_compte, statut, date_creation.
+        </div>
       </div>
 
-      <form onSubmit={onSearch} className="flex gap-2">
-        <input
-          className="input input-bordered w-full max-w-lg"
-          placeholder="Rechercher par username ou email…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <button className="btn" type="submit" disabled={loading}>
-          Rechercher
-        </button>
-      </form>
+      {error ? <div className="admin-alert" role="alert">{error}</div> : null}
 
-      {error && (
-        <div className="alert alert-error">
-          <span>{String(error)}</span>
+      <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
+        <div className="admin-table-head">
+          <div>
+            <div className="admin-table-title">Liste des utilisateurs</div>
+            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
+              {count.toLocaleString("fr-FR")} utilisateur(s)
+            </div>
+          </div>
+
+          <div className="admin-table-tools">
+            <button className="admin-btn" onClick={() => setParam({ page: 1 })} disabled={loading}>
+              {loading ? "…" : "Actualiser"}
+            </button>
+
+            <form onSubmit={onSubmit} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <input
+                className="admin-input"
+                placeholder="Recherche (username/email/type/statut)…"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+              />
+              <button className="admin-btn" type="submit" disabled={loading}>Rechercher</button>
+              <button
+                className="admin-btn admin-btn--ghost"
+                type="button"
+                onClick={() => {
+                  setInput("");
+                  setParam({ q: "", page: 1 });
+                }}
+              >
+                Effacer
+              </button>
+            </form>
+
+            <select className="admin-select" value={pageSize} onChange={(e) => setParam({ page_size: Number(e.target.value), page: 1 })}>
+              {PAGE_SIZES.map((s) => (
+                <option key={s} value={s}>{s}/page</option>
+              ))}
+            </select>
+          </div>
         </div>
-      )}
 
-      <div className="card bg-base-100 shadow">
-        <div className="card-body p-0">
-          <div className="overflow-x-auto">
-            <table className="table table-zebra">
+        {loading ? (
+          <div className="admin-table-state">Chargement…</div>
+        ) : items.length === 0 ? (
+          <div className="admin-table-state">Aucun utilisateur trouvé.</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="admin-table">
               <thead>
                 <tr>
                   <th>ID</th>
                   <th>Username</th>
                   <th>Email</th>
-                  <th>Type</th>
-                  <th>Statut</th>
-                  <th>Staff</th>
-                  <th>Dernière connexion</th>
-                  <th></th>
+                  <th className="admin-td-center">Type</th>
+                  <th className="admin-td-center">Statut</th>
+                  <th>Date création</th>
+                  <th className="admin-td-right"></th>
                 </tr>
               </thead>
               <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={8}>
-                      <div className="flex justify-center py-10">
-                        <span className="loading loading-spinner loading-lg" />
-                      </div>
+                {items.map((u) => (
+                  <tr key={u.id}>
+                    <td>{u.id}</td>
+                    <td style={{ fontWeight: 700 }}>{u.username}</td>
+                    <td>{u.email || "—"}</td>
+                    <td className="admin-td-center">
+                      <span className={badgeType(u.type_compte)}>{u.type_compte ?? "—"}</span>
+                    </td>
+                    <td className="admin-td-center">
+                      <span className={badgeStatut(u.statut)}>{u.statut ?? "—"}</span>
+                    </td>
+                    <td>{formatDate(u.date_creation)}</td>
+                    <td className="admin-td-right">
+                      <Link className="admin-btn admin-btn--sm" to={`/admin/utilisateurs/${u.id}`}>
+                        Détails
+                      </Link>
                     </td>
                   </tr>
-                )}
-
-                {!loading && pageItems.length === 0 && (
-                  <tr>
-                    <td colSpan={8}>
-                      <div className="alert">
-                        <span>Aucun utilisateur trouvé.</span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {!loading &&
-                  pageItems.map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.id}</td>
-                      <td className="font-medium">{u.username}</td>
-                      <td>{u.email || "-"}</td>
-                      <td>{u.type_compte ?? (u.is_staff ? "ADMIN" : "CLIENT")}</td>
-                      <td>{u.statut ?? (u.is_active ? "ACTIF" : "INACTIF")}</td>
-                      <td>{u.is_staff ? "Oui" : "Non"}</td>
-                      <td>{u.derniere_connexion ? formatDateTime(u.derniere_connexion) : "-"}</td>
-                      <td className="text-right">
-                        <Link to={`/admin/users/${u.id}`} className="btn btn-sm">
-                          Détails
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                ))}
               </tbody>
             </table>
-          </div>
 
-          {/* Pagination */}
-          <div className="p-4 flex items-center justify-between">
-            <span className="text-sm opacity-70">
-              {totalCount} utilisateur{totalCount > 1 ? "s" : ""} — page {page}/{totalPages}
-            </span>
-            <div className="join">
-              <button
-                className="btn join-item"
-                onClick={() => goTo(1)}
-                disabled={page <= 1}
-              >
-                «
-              </button>
-              <button
-                className="btn join-item"
-                onClick={() => goTo(page - 1)}
-                disabled={page <= 1}
-              >
-                Préc.
-              </button>
-              <button
-                className="btn join-item"
-                onClick={() => goTo(page + 1)}
-                disabled={page >= totalPages}
-              >
-                Suiv.
-              </button>
-              <button
-                className="btn join-item"
-                onClick={() => goTo(totalPages)}
-                disabled={page >= totalPages}
-              >
-                »
-              </button>
+            <div className="admin-table-footer">
+              <div className="admin-table-footer__text">
+                {count.toLocaleString("fr-FR")} utilisateur(s) — page {safePage}/{totalPages}
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="admin-btn admin-btn--sm" disabled={safePage <= 1} onClick={() => setParam({ page: safePage - 1 })}>
+                  ←
+                </button>
+                <button className="admin-btn admin-btn--sm" disabled={safePage >= totalPages} onClick={() => setParam({ page: safePage + 1 })}>
+                  →
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
