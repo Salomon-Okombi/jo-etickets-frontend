@@ -1,4 +1,3 @@
-// src/layouts/AdminLayout.tsx
 import React from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
@@ -7,9 +6,9 @@ import "@/styles/admin.css";
 
 /*
   Layout Administration
-  - Je sépare l'admin du site public : pas de header/footer public ici.
-  - Je garde une sidebar admin dédiée (navigation + identité + logout).
-  - Je laisse le contenu des pages via <Outlet />.
+  - Admin séparé du site public (pas de header/footer public)
+  - Sidebar admin dédiée
+  - Ajout des modules manquants : Commandes + Billets
 */
 
 export default function AdminLayout() {
@@ -34,27 +33,37 @@ export default function AdminLayout() {
           </div>
 
           <nav className="admin-nav">
-            <NavLink to="/admin" className={navClass}>
+            <NavLink to="/admin" end className={navClass}>
               Tableau de bord
             </NavLink>
+
+            <NavLink to="/admin/commandes" className={navClass}>
+              Commandes
+            </NavLink>
+
+            <NavLink to="/admin/billets" className={navClass}>
+              Billets / Tickets
+            </NavLink>
+
             <NavLink to="/admin/evenements" className={navClass}>
               Événements
             </NavLink>
+
             <NavLink to="/admin/offres" className={navClass}>
               Offres
             </NavLink>
+
             <NavLink to="/admin/stats" className={navClass}>
               Statistiques
             </NavLink>
+
             <NavLink to="/admin/utilisateurs" className={navClass}>
               Utilisateurs
             </NavLink>
           </nav>
 
           <div className="admin-sidebar__footer">
-            <div>
-              {user?.username || user?.email || "Utilisateur"}
-            </div>
+            <div>{user?.username || user?.email || "Utilisateur"}</div>
 
             <button className="admin-sidebar__logout" onClick={handleLogout}>
               Se déconnecter
@@ -69,3 +78,4 @@ export default function AdminLayout() {
     </div>
   );
 }
+``

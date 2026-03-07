@@ -403,3 +403,199 @@ body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+
+/* =========================================================
+   AJOUTS nécessaires (table / badges / modal) — LIGHT
+   ========================================================= */
+
+.admin-text-muted {
+  color: var(--admin-muted);
+}
+
+.admin-btn--sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.admin-table-wrap {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow);
+  overflow: hidden;
+}
+
+.admin-table-head {
+  padding: 1rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--admin-border);
+  flex-wrap: wrap;
+}
+
+.admin-table-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+.admin-table-tools {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-table-state {
+  padding: 1.1rem 1rem;
+  color: var(--admin-muted);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 0.92rem;
+}
+
+.admin-table th {
+  text-align: left;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--admin-muted);
+  background: rgba(238, 241, 255, 0.8);
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(238, 241, 255, 0.55);
+}
+
+.admin-td-center {
+  text-align: center;
+}
+
+.admin-td-right {
+  text-align: right;
+}
+
+.admin-td-muted {
+  color: var(--admin-muted-2);
+}
+
+.admin-table-footer {
+  padding: 0.9rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-table-footer__text {
+  color: var(--admin-muted);
+  font-size: 0.9rem;
+}
+
+/* Badges statut */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--admin-radius-pill);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--admin-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.admin-badge--ok {
+  border-color: rgba(15, 157, 88, 0.25);
+  background: rgba(15, 157, 88, 0.10);
+  color: rgba(9, 92, 54, 1);
+}
+
+.admin-badge--warn {
+  border-color: rgba(234, 179, 8, 0.28);
+  background: rgba(234, 179, 8, 0.16);
+  color: rgba(125, 80, 0, 1);
+}
+
+.admin-badge--danger {
+  border-color: rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.12);
+  color: rgba(140, 20, 20, 1);
+}
+
+.admin-badge--muted {
+  color: var(--admin-muted);
+}
+
+/* Modal */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem;
+  z-index: 999;
+}
+
+.admin-modal {
+  width: min(720px, 100%);
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.20);
+  overflow: hidden;
+}
+
+.admin-modal__header {
+  padding: 1rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-modal__title {
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+.admin-modal__body {
+  padding: 1rem 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.admin-modal__qr {
+  max-width: 100%;
+  width: 320px;
+  height: auto;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+.admin-modal__footer {
+  padding: 1rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  border-top: 1px solid var(--admin-border);
+}

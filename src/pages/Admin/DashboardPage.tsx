@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/api/axiosClient";
+import useToast from "@/hooks/useToast";
 import "@/styles/admin.css";
 
 /* =========================================================================
    Dashboard Admin (billetterie)
    - KPI : synthèse rapide
    - Table : tickets/réservations (priorité visuelle)
-   - Accès rapides : STATISTIQUES / UTILISATEURS / OFFRES / ÉVÉNEMENTS
+   - Accès rapides : STATISTIQUES / UTILISATEURS / OFFRES / ÉVÉNEMENTS / COMMANDES
    ========================================================================= */
 
 type OverviewStats = {
@@ -61,7 +62,7 @@ function statusBadgeClass(statut: TicketStatus) {
   if (statut === "VALIDE") return "admin-badge admin-badge--ok";
   if (statut === "UTILISE") return "admin-badge admin-badge--warn";
   if (statut === "ANNULE") return "admin-badge admin-badge--danger";
-  return "admin-badge";
+  return "admin-badge admin-badge--muted";
 }
 
 function KpiCard(props: {
@@ -89,6 +90,8 @@ function KpiCard(props: {
 }
 
 export default function DashboardPage() {
+  const { showToast } = useToast();
+
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [errorStats, setErrorStats] = useState<string | null>(null);
@@ -110,74 +113,84 @@ export default function DashboardPage() {
   const [qrModalTitle, setQrModalTitle] = useState("");
   const [qrModalSrc, setQrModalSrc] = useState("");
 
+  // Debounce recherche
   useEffect(() => {
-    const t = setTimeout(() => {
+    const t = window.setTimeout(() => {
       setPage(1);
       setSearch(searchInput.trim());
     }, 350);
-    return () => clearTimeout(t);
+    return () => window.clearTimeout(t);
   }, [searchInput]);
 
+  // Fetch overview stats
   useEffect(() => {
-    let mounted = true;
+    const controller = new AbortController();
 
     async function fetchOverview() {
       try {
         setLoadingStats(true);
         setErrorStats(null);
-        const { data } = await api.get<OverviewStats>("/stats/overview/");
-        if (!mounted) return;
+
+        const { data } = await api.get<OverviewStats>("/stats/overview/", {
+          signal: controller.signal,
+        });
+
         setStats(data);
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
         console.error("Dashboard: stats overview error =", err);
-        if (!mounted) return;
         setErrorStats("Statistiques indisponibles pour le moment.");
       } finally {
-        if (mounted) setLoadingStats(false);
+        setLoadingStats(false);
       }
     }
 
     fetchOverview();
-    return () => {
-      mounted = false;
-    };
+    return () => controller.abort();
   }, []);
 
+  // Fetch tickets paginés
   useEffect(() => {
-    let mounted = true;
+    const controller = new AbortController();
 
     async function fetchTickets() {
       try {
         setLoadingTickets(true);
         setErrorTickets(null);
 
-        const params: any = { page, page_size: pageSize };
+        const params: Record<string, string | number> = {
+          page,
+          page_size: pageSize,
+        };
+
         if (search) params.search = search;
 
-        const { data } = await api.get<Paginated<Ticket>>("/billets/", { params });
-        if (!mounted) return;
+        const { data } = await api.get<Paginated<Ticket>>("/billets/", {
+          params,
+          signal: controller.signal,
+        });
 
         setTickets(data.results);
         setTicketsCount(data.count);
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
         console.error("Dashboard: tickets error =", err);
-        if (!mounted) return;
         setErrorTickets("Chargement des tickets impossible.");
       } finally {
-        if (mounted) setLoadingTickets(false);
+        setLoadingTickets(false);
       }
     }
 
     fetchTickets();
-    return () => {
-      mounted = false;
-    };
+    return () => controller.abort();
   }, [page, pageSize, search]);
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(ticketsCount / pageSize)),
-    [ticketsCount, pageSize]
-  );
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(ticketsCount / pageSize)), [ticketsCount, pageSize]);
+
+  // Evite page > totalPages si changement pageSize/recherche
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const reservationsTotal = useMemo(() => {
     return stats?.nb_tickets ?? ticketsCount ?? 0;
@@ -197,8 +210,13 @@ export default function DashboardPage() {
     setQrModalSrc("");
   }
 
-  function copyText(text: string) {
-    navigator.clipboard.writeText(text);
+  async function copyText(text: string, label = "Copié") {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`${label} ✅`, "success");
+    } catch {
+      showToast("Impossible de copier (permissions navigateur).", "error");
+    }
   }
 
   return (
@@ -212,9 +230,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Alerte accessible */}
-      {showError ? <div className="admin-alert" role="alert">{showError}</div> : null}
+      {showError ? (
+        <div className="admin-alert" role="alert">
+          {showError}
+        </div>
+      ) : null}
 
-      {/* KPI (discrets, utiles) */}
+      {/* KPI */}
       <div style={{ marginTop: "1rem" }} className="admin-kpi-grid">
         <KpiCard
           label="Épreuves"
@@ -234,7 +256,7 @@ export default function DashboardPage() {
           label="Réservations"
           value={loadingStats ? "…" : formatNumber(reservationsTotal)}
           hint="Nombre total de billets émis."
-          linkTo="/admin/dashboard"
+          linkTo="/admin/billets"
           linkLabel="Voir"
         />
         <KpiCard
@@ -246,15 +268,18 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ACCÈS RAPIDES (prioritaires) */}
+      {/* ACCÈS RAPIDES */}
       <section style={{ marginTop: "1.6rem" }}>
         <div className="admin-table-title">Modules principaux</div>
+
         <div style={{ marginTop: "0.85rem" }} className="admin-crud-grid">
           <div className="admin-crud-card">
             <div className="admin-crud-title">STATISTIQUES</div>
             <div className="admin-crud-desc">Analyse ventes, CA, tendances, top offres.</div>
             <div className="admin-crud-footer">
-              <Link to="/admin/stats" className="admin-crud-link">Ouvrir →</Link>
+              <Link to="/admin/stats" className="admin-crud-link">
+                Ouvrir →
+              </Link>
             </div>
           </div>
 
@@ -262,15 +287,19 @@ export default function DashboardPage() {
             <div className="admin-crud-title">UTILISATEURS</div>
             <div className="admin-crud-desc">Comptes, statuts, détails, suivi.</div>
             <div className="admin-crud-footer">
-              <Link to="/admin/utilisateurs" className="admin-crud-link">Ouvrir →</Link>
+              <Link to="/admin/utilisateurs" className="admin-crud-link">
+                Ouvrir →
+              </Link>
             </div>
           </div>
 
           <div className="admin-crud-card">
-            <div className="admin-crud-title">OFFRES</div>
-            <div className="admin-crud-desc">Tarifs, quotas, activation/désactivation.</div>
+            <div className="admin-crud-title">COMMANDES</div>
+            <div className="admin-crud-desc">Paiements, commandes, états, validation.</div>
             <div className="admin-crud-footer">
-              <Link to="/admin/offres" className="admin-crud-link">Ouvrir →</Link>
+              <Link to="/admin/commandes" className="admin-crud-link">
+                Ouvrir →
+              </Link>
             </div>
           </div>
 
@@ -278,18 +307,20 @@ export default function DashboardPage() {
             <div className="admin-crud-title">ÉVÉNEMENTS</div>
             <div className="admin-crud-desc">Épreuves, dates, lieux, capacité.</div>
             <div className="admin-crud-footer">
-              <Link to="/admin/evenements" className="admin-crud-link">Ouvrir →</Link>
+              <Link to="/admin/evenements" className="admin-crud-link">
+                Ouvrir →
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* TABLE (mise en avant) */}
+      {/* TABLE Tickets */}
       <div className="admin-table-wrap" style={{ marginTop: "1.6rem" }}>
         <div className="admin-table-head">
           <div>
             <div className="admin-table-title">Tickets / Réservations</div>
-            <div style={{ color: "rgba(255,255,255,0.62)", fontSize: "0.85rem", marginTop: "0.15rem" }}>
+            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
               Recherche + consultation des QR Codes.
             </div>
           </div>
@@ -328,9 +359,9 @@ export default function DashboardPage() {
         </div>
 
         {loadingTickets ? (
-          <div style={{ padding: "1.1rem 1rem", color: "rgba(255,255,255,0.72)" }}>Chargement…</div>
+          <div className="admin-table-state">Chargement…</div>
         ) : tickets.length === 0 ? (
-          <div style={{ padding: "1.1rem 1rem", color: "rgba(255,255,255,0.72)" }}>Aucun ticket trouvé.</div>
+          <div className="admin-table-state">Aucun ticket trouvé.</div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table className="admin-table">
@@ -354,7 +385,7 @@ export default function DashboardPage() {
 
                     <td className="admin-td-center">
                       {t.qr_code ? (
-                        <button className="admin-btn" onClick={() => openQrModal(t)} style={{ padding: "0.35rem 0.75rem" }}>
+                        <button className="admin-btn admin-btn--sm" onClick={() => openQrModal(t)}>
                           QR
                         </button>
                       ) : (
@@ -367,16 +398,20 @@ export default function DashboardPage() {
                     </td>
 
                     <td className="admin-td-right">
-                      <Link className="admin-btn" to={`/mon-espace/billets/${t.id}`} style={{ marginRight: "0.4rem" }}>
+                      <Link className="admin-btn admin-btn--sm" to={`/admin/billets/${t.id}`} style={{ marginRight: "0.4rem" }}>
                         Détails
                       </Link>
 
-                      <button className="admin-btn" onClick={() => copyText(t.numero_billet)} style={{ marginRight: "0.4rem" }}>
+                      <button
+                        className="admin-btn admin-btn--sm"
+                        onClick={() => copyText(t.numero_billet, "Numéro copié")}
+                        style={{ marginRight: "0.4rem" }}
+                      >
                         Copier n°
                       </button>
 
                       {t.qr_code ? (
-                        <button className="admin-btn" onClick={() => copyText(asQrSrc(t.qr_code))}>
+                        <button className="admin-btn admin-btn--sm" onClick={() => copyText(asQrSrc(t.qr_code), "QR copié")}>
                           Copier QR
                         </button>
                       ) : null}
@@ -392,15 +427,11 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button
-                  className="admin-btn"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
+                <button className="admin-btn admin-btn--sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                   ←
                 </button>
                 <button
-                  className="admin-btn"
+                  className="admin-btn admin-btn--sm"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
@@ -418,20 +449,22 @@ export default function DashboardPage() {
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal__header">
               <div className="admin-modal__title">{qrModalTitle}</div>
-              <button className="admin-btn" onClick={closeQrModal}>Fermer</button>
+              <button className="admin-btn admin-btn--sm" onClick={closeQrModal}>
+                Fermer
+              </button>
             </div>
 
             <div className="admin-modal__body">
               {qrModalSrc ? (
                 <img className="admin-modal__qr" src={qrModalSrc} alt="QR Code" />
               ) : (
-                <div style={{ color: "rgba(255,255,255,0.65)" }}>QR indisponible</div>
+                <div className="admin-text-muted">QR indisponible</div>
               )}
             </div>
 
             <div className="admin-modal__footer">
               {qrModalSrc ? (
-                <button className="admin-btn" onClick={() => copyText(qrModalSrc)}>
+                <button className="admin-btn admin-btn--sm" onClick={() => copyText(qrModalSrc, "QR copié")}>
                   Copier QR
                 </button>
               ) : null}
