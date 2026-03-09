@@ -14,6 +14,7 @@ export interface User {
   type_compte?: AccountType;
   statut?: AccountStatus;
   date_creation?: string;
+  
 }
 
 /**

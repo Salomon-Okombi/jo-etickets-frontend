@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { listUsers } from "@/api/users.api";
+import { listUsers, deleteUser } from "@/api/users.api";
 import type { User } from "@/types/users";
 import "@/styles/admin.css";
 
@@ -29,6 +29,42 @@ function badgeStatut(s?: string) {
   return "admin-badge admin-badge--muted";
 }
 
+/**
+ * Affiche toutes les clés (debug / ultra complet)
+ * -> utile si tu veux vraiment "tout voir" même si le type ne contient pas tout.
+ * On retire les champs déjà affichés dans les colonnes principales pour éviter doublons.
+ */
+function renderExtraFields(user: Record<string, any>) {
+  const blacklist = new Set([
+    "id",
+    "username",
+    "email",
+    "type_compte",
+    "statut",
+    "date_creation",
+  ]);
+
+  const entries = Object.entries(user).filter(([k, v]) => !blacklist.has(k) && v !== null && v !== undefined);
+
+  if (entries.length === 0) return "—";
+
+  // On affiche de façon compacte : key=value
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+      {entries.slice(0, 6).map(([k, v]) => (
+        <span key={k} className="admin-badge admin-badge--muted" title={`${k} = ${String(v)}`}>
+          {k}:{String(v)}
+        </span>
+      ))}
+      {entries.length > 6 ? (
+        <span className="admin-badge admin-badge--muted" title="Champs supplémentaires non affichés">
+          +{entries.length - 6}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default function UsersAdminList() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -44,31 +80,37 @@ export default function UsersAdminList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // delete state
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
   useEffect(() => setInput(q), [q]);
+
+  async function fetchUsers(signal?: AbortSignal) {
+    const data = await listUsers({
+      page,
+      page_size: pageSize,
+      search: q.trim() || undefined,
+    });
+
+    if (signal?.aborted) return;
+
+    setItems(data.results);
+    setCount(data.count);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function fetchUsers() {
+    async function run() {
       try {
         setLoading(true);
         setError(null);
-
-        const data = await listUsers({
-          page,
-          page_size: pageSize,
-          search: q.trim() || undefined,
-        });
-
-        if (controller.signal.aborted) return;
-
-        setItems(data.results);
-        setCount(data.count);
+        await fetchUsers(controller.signal);
       } catch (err: any) {
         const status = err?.response?.status;
         if (status === 401) setError("Non authentifié (401). Connecte-toi.");
-        else if (status === 403) setError("Accès refusé (403). Tu n'es pas admin (is_staff requis).");
-        else if (status === 404) setError("Endpoint introuvable (404). Vérifie /api/utilisateurs/.");
+        else if (status === 403) setError("Accès refusé (403). Admin requis (is_staff).");
+        else if (status === 404) setError("Endpoint introuvable (404). Vérifie le CRUD admin users.");
         else setError("Chargement des utilisateurs impossible.");
         console.error("UsersAdminList error:", err);
       } finally {
@@ -76,7 +118,7 @@ export default function UsersAdminList() {
       }
     }
 
-    fetchUsers();
+    run();
     return () => controller.abort();
   }, [page, pageSize, q]);
 
@@ -103,16 +145,55 @@ export default function UsersAdminList() {
     setParam({ q: input, page: 1 });
   }
 
+  async function onDelete(u: User) {
+    const ok = window.confirm(
+      `Supprimer l'utilisateur "${u.username}" (ID ${u.id}) ?\nCette action est irréversible.`
+    );
+    if (!ok) return;
+
+    try {
+      setDeletingId(u.id);
+      setError(null);
+
+      await deleteUser(u.id);
+
+      // refresh list
+      // si on supprime le dernier élément d'une page, on recule d'une page si possible
+      const newCount = Math.max(0, count - 1);
+      const newTotalPages = Math.max(1, Math.ceil(newCount / pageSize));
+      if (safePage > newTotalPages) {
+        setParam({ page: newTotalPages });
+      } else {
+        // refresh in place
+        const controller = new AbortController();
+        await fetchUsers(controller.signal);
+      }
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 400) setError("Suppression refusée (400) : peut-être suppression de soi-même ou super-admin.");
+      else if (status === 401) setError("Non authentifié (401).");
+      else if (status === 403) setError("Accès refusé (403).");
+      else setError("Suppression impossible.");
+      console.error("Delete user error:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="admin-page">
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Utilisateurs</div>
         <div className="admin-subtitle">
-          Liste admin : username, email, type_compte, statut, date_creation.
+          Liste admin : username, email, type_compte, statut, date_creation (+ champs supplémentaires si présents).
         </div>
       </div>
 
-      {error ? <div className="admin-alert" role="alert">{error}</div> : null}
+      {error ? (
+        <div className="admin-alert" role="alert">
+          {error}
+        </div>
+      ) : null}
 
       <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
         <div className="admin-table-head">
@@ -124,6 +205,11 @@ export default function UsersAdminList() {
           </div>
 
           <div className="admin-table-tools">
+            {/* ✅ bouton créer */}
+            <Link className="admin-btn" to="/admin/utilisateurs/nouveau">
+              + Créer
+            </Link>
+
             <button className="admin-btn" onClick={() => setParam({ page: 1 })} disabled={loading}>
               {loading ? "…" : "Actualiser"}
             </button>
@@ -135,7 +221,9 @@ export default function UsersAdminList() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
               />
-              <button className="admin-btn" type="submit" disabled={loading}>Rechercher</button>
+              <button className="admin-btn" type="submit" disabled={loading}>
+                Rechercher
+              </button>
               <button
                 className="admin-btn admin-btn--ghost"
                 type="button"
@@ -148,9 +236,15 @@ export default function UsersAdminList() {
               </button>
             </form>
 
-            <select className="admin-select" value={pageSize} onChange={(e) => setParam({ page_size: Number(e.target.value), page: 1 })}>
+            <select
+              className="admin-select"
+              value={pageSize}
+              onChange={(e) => setParam({ page_size: Number(e.target.value), page: 1 })}
+            >
               {PAGE_SIZES.map((s) => (
-                <option key={s} value={s}>{s}/page</option>
+                <option key={s} value={s}>
+                  {s}/page
+                </option>
               ))}
             </select>
           </div>
@@ -162,7 +256,8 @@ export default function UsersAdminList() {
           <div className="admin-table-state">Aucun utilisateur trouvé.</div>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table className="admin-table">
+            {/* ✅ table large scrollable */}
+            <table className="admin-table" style={{ minWidth: 1100 }}>
               <thead>
                 <tr>
                   <th>ID</th>
@@ -171,26 +266,52 @@ export default function UsersAdminList() {
                   <th className="admin-td-center">Type</th>
                   <th className="admin-td-center">Statut</th>
                   <th>Date création</th>
-                  <th className="admin-td-right"></th>
+                  {/* ✅ champs supplémentaires */}
+                  <th>Autres champs</th>
+                  {/* ✅ actions */}
+                  <th className="admin-td-right">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {items.map((u) => (
                   <tr key={u.id}>
                     <td>{u.id}</td>
                     <td style={{ fontWeight: 700 }}>{u.username}</td>
                     <td>{u.email || "—"}</td>
+
                     <td className="admin-td-center">
                       <span className={badgeType(u.type_compte)}>{u.type_compte ?? "—"}</span>
                     </td>
+
                     <td className="admin-td-center">
                       <span className={badgeStatut(u.statut)}>{u.statut ?? "—"}</span>
                     </td>
+
                     <td>{formatDate(u.date_creation)}</td>
+
+                    {/* ✅ montre tout ce que renvoie l’API en “extra” */}
+                    <td>{renderExtraFields(u as any)}</td>
+
                     <td className="admin-td-right">
-                      <Link className="admin-btn admin-btn--sm" to={`/admin/utilisateurs/${u.id}`}>
-                        Détails
+                      {/* ✅ Modifier */}
+                      <Link
+                        className="admin-btn admin-btn--sm"
+                        to={`/admin/utilisateurs/${u.id}`}
+                        style={{ marginRight: "0.4rem" }}
+                      >
+                        Modifier
                       </Link>
+
+                      {/* ✅ Supprimer */}
+                      <button
+                        className="admin-btn admin-btn--sm"
+                        onClick={() => onDelete(u)}
+                        disabled={deletingId === u.id}
+                        title="Supprimer l'utilisateur"
+                      >
+                        {deletingId === u.id ? "…" : "Supprimer"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -202,13 +323,25 @@ export default function UsersAdminList() {
                 {count.toLocaleString("fr-FR")} utilisateur(s) — page {safePage}/{totalPages}
               </div>
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="admin-btn admin-btn--sm" disabled={safePage <= 1} onClick={() => setParam({ page: safePage - 1 })}>
+                <button
+                  className="admin-btn admin-btn--sm"
+                  disabled={safePage <= 1}
+                  onClick={() => setParam({ page: safePage - 1 })}
+                >
                   ←
                 </button>
-                <button className="admin-btn admin-btn--sm" disabled={safePage >= totalPages} onClick={() => setParam({ page: safePage + 1 })}>
+                <button
+                  className="admin-btn admin-btn--sm"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setParam({ page: safePage + 1 })}
+                >
                   →
                 </button>
               </div>
+            </div>
+
+            <div style={{ padding: "0.85rem 1rem" }} className="admin-text-muted">
+              Astuce : fais défiler horizontalement pour voir toutes les colonnes.
             </div>
           </div>
         )}

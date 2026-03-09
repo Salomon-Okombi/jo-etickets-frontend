@@ -599,3 +599,51 @@ body {
   gap: 0.6rem;
   border-top: 1px solid var(--admin-border);
 }
+
+/* ✅ Scroll horizontal garanti */
+.admin-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Optionnel: scrollbar plus visible */
+.admin-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.admin-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+.admin-table-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+}
+
+/* ✅ Groupe d'actions (boutons alignés proprement) */
+.admin-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ✅ Bouton danger (supprimer) */
+.admin-btn--danger {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.10);
+  color: rgba(140, 20, 20, 1);
+}
+
+.admin-btn--danger:hover {
+  border-color: rgba(220, 38, 38, 0.75);
+  background: rgba(220, 38, 38, 0.16);
+}
+
+/* ✅ Optionnel: pour boutons actions plus compacts */
+.admin-btn--xs {
+  padding: 0.28rem 0.6rem;
+  font-size: 0.8rem;
+}

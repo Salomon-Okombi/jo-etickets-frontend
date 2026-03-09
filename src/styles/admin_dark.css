@@ -416,3 +416,24 @@ body {
   }
 }
 
+/* ✅ Scroll horizontal garanti */
+.admin-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Optionnel: scrollbar plus visible */
+.admin-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.admin-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 999px;
+}
+.admin-table-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+}
+

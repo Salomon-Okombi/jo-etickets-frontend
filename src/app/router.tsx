@@ -43,8 +43,8 @@ import OfferAdminEditPage from "@/pages/Admin/Offers/OfferAdminEdit";
 import StatsPage from "@/pages/Admin/Stats/StatsPage";
 import UsersAdminListPage from "@/pages/Admin/Users/UsersAdminList";
 import UserAdminDetailPage from "@/pages/Admin/Users/UserAdminDetail";
-
-// ✅ NOUVEAUX : Admin Billets + Admin Commandes
+import UserAdminCreatePage from "@/pages/Admin/Users/UserAdminCreate";
+// NOUVEAUX : Admin Billets + Admin Commandes
 // Assure-toi que ces fichiers existent bien aux emplacements indiqués
 import BilletsAdminListPage from "@/pages/Admin/Billets/BilletsAdminListPage";
 import OrdersAdminListPage from "@/pages/Admin/Orders/OrdersAdminListPage";
@@ -136,6 +136,7 @@ export const router = createBrowserRouter([
 
           // Users (Admin)
           { path: "utilisateurs", element: <UsersAdminListPage /> },
+          { path: "utilisateurs/nouveau", element: <UserAdminCreatePage /> },
           { path: "utilisateurs/:id", element: <UserAdminDetailPage /> },
         ],
       },

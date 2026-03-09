@@ -1,14 +1,15 @@
+export type EventStatus = "A_VENIR" | "EN_COURS" | "TERMINE" | string;
+
 export interface Event {
   id: number;
   nom: string;
   discipline_sportive: string;
-  date_evenement: string;       // ISO date/datetime
+  date_evenement: string;      // ISO "YYYY-MM-DD"
   lieu_evenement: string;
-  description: string | null;
+  description?: string | null;
+  statut: EventStatus;
+  date_creation?: string;      // ISO datetime
 }
-
-export type CreateEventPayload = Omit<Event, "id">;
-export type UpdateEventPayload = Partial<CreateEventPayload>;
 
 export interface Paginated<T> {
   count: number;
@@ -16,3 +17,13 @@ export interface Paginated<T> {
   previous: string | null;
   results: T[];
 }
+
+export interface EventListParams {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  ordering?: string;
+}
+
+export type EventCreatePayload = Omit<Event, "id" | "date_creation">;
+export type EventUpdatePayload = Partial<EventCreatePayload>;
