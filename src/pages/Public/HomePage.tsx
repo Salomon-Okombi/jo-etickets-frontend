@@ -6,10 +6,10 @@ const HomePage: React.FC = () => {
     <div className="home">
       {/* HERO */}
       <section
-        className="home-hero"
+        className="home-hero" 
         style={{
           backgroundImage: `
-            linear-gradient(120deg, rgba(0, 9, 40, 0.9), rgba(6, 25, 70, 0.9)),
+            linear-gradient(120deg, rgba(1, 14, 61, 0.9), rgba(134, 150, 200, 0.9)),
             url(${heroBg})
           `,
         }}

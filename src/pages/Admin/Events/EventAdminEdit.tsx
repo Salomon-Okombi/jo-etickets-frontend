@@ -4,7 +4,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { api } from "@/api/axiosClient";
 import "@/styles/admin.css";
 
-type EventStatus = "A_VENIR" | "EN_COURS" | "TERMINE";
+type EventStatus = "A_VENIR" | "EN_COURS" | "TERMINE" | string;
 
 interface AdminEvent {
   id: number;
@@ -19,6 +19,11 @@ interface AdminEvent {
 
 function normalizeDateForInput(v: string) {
   return v ? v.slice(0, 10) : "";
+}
+
+// ✅ Helper: détecte les annulations axios/abort
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
 }
 
 export default function EventAdminEdit() {
@@ -43,6 +48,14 @@ export default function EventAdminEdit() {
      LOAD EVENT
   ------------------------------------------------------- */
   useEffect(() => {
+    // ✅ si l'id est invalide, on stop proprement
+    if (!Number.isFinite(eventId) || eventId <= 0) {
+      setLoading(false);
+      setEvent(null);
+      setError("Identifiant d’événement invalide.");
+      return;
+    }
+
     const controller = new AbortController();
 
     async function load() {
@@ -54,6 +67,7 @@ export default function EventAdminEdit() {
           signal: controller.signal,
         });
 
+        // ✅ si abort entre temps, on n'applique rien
         if (controller.signal.aborted) return;
 
         setEvent(data);
@@ -64,16 +78,22 @@ export default function EventAdminEdit() {
         setDescription(data.description ?? "");
         setStatut(data.statut);
       } catch (err: any) {
+        // ✅ IMPORTANT : ignorer les annulations (StrictMode/AbortController)
+        if (isCanceledError(err) || controller.signal.aborted) return;
+
         const status = err?.response?.status;
-        if (status === 404) setError("Événement introuvable.");
+
+        if (status === 401) setError("Session expirée. Reconnecte-toi.");
+        else if (status === 404) setError("Événement introuvable.");
         else if (status === 403) setError("Accès refusé (403).");
         else setError("Impossible de charger l’événement.");
       } finally {
-        setLoading(false);
+        // ✅ évite de passer loading=false si on a abort (sinon glitch)
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
-    if (Number.isFinite(eventId)) load();
+    load();
     return () => controller.abort();
   }, [eventId]);
 
@@ -101,6 +121,8 @@ export default function EventAdminEdit() {
 
     try {
       setSaving(true);
+      setError(null);
+
       await api.patch(`/evenements/${eventId}/`, {
         nom: nom.trim(),
         discipline_sportive: discipline.trim(),
@@ -112,8 +134,12 @@ export default function EventAdminEdit() {
 
       navigate("/admin/evenements");
     } catch (err: any) {
+      if (isCanceledError(err)) return;
+
       const status = err?.response?.status;
       if (status === 400) setError("Données invalides.");
+      else if (status === 401) setError("Session expirée. Reconnecte-toi.");
+      else if (status === 403) setError("Accès refusé (403).");
       else setError("Erreur lors de la mise à jour.");
     } finally {
       setSaving(false);
@@ -128,7 +154,7 @@ export default function EventAdminEdit() {
   if (!event) {
     return (
       <div className="admin-page">
-        <div className="admin-alert">Impossible de trouver cet événement.</div>
+        <div className="admin-alert">{error ?? "Impossible de trouver cet événement."}</div>
         <Link className="admin-btn admin-btn--ghost" to="/admin/evenements">
           ← Retour
         </Link>
@@ -138,7 +164,6 @@ export default function EventAdminEdit() {
 
   return (
     <div className="admin-page">
-
       {/* Header */}
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Modifier l’événement</div>
@@ -159,7 +184,6 @@ export default function EventAdminEdit() {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem", maxWidth: 700 }}>
-
           {/* ROW 1 */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
@@ -169,7 +193,11 @@ export default function EventAdminEdit() {
 
             <div>
               <div className="admin-text-muted">Discipline sportive *</div>
-              <input className="admin-input" value={discipline} onChange={(e) => setDiscipline(e.target.value)} />
+              <input
+                className="admin-input"
+                value={discipline}
+                onChange={(e) => setDiscipline(e.target.value)}
+              />
             </div>
           </div>
 
@@ -218,7 +246,11 @@ export default function EventAdminEdit() {
 
           {/* ACTION BUTTONS */}
           <div style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end" }}>
-            <button type="button" className="admin-btn admin-btn--ghost" onClick={() => navigate(-1)}>
+            <button
+              type="button"
+              className="admin-btn admin-btn--ghost"
+              onClick={() => navigate(-1)}
+            >
               Annuler
             </button>
 
