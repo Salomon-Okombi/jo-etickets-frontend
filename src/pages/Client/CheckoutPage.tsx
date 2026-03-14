@@ -1,143 +1,167 @@
-// src/pages/Client/CheckoutPage.tsx
-import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import useCart from "@/hooks/useCart";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import type { Cart } from "@/types/carts";
+import { getActiveCart } from "@/api/carts.api";
 import { createOrder, payOrder } from "@/api/orders.api";
-import { formatCurrency } from "@/utils/format";
-import useToast from "@/hooks/useToast";
-import type { CartLine } from "@/api/carts.api";
+import type { Order } from "@/types/orders";
+
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
+}
+
+function fmtMoney(v?: number | string) {
+  if (v === undefined || v === null) return "—";
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
 
 export default function CheckoutPage() {
-  const { cart, refresh } = useCart();
   const navigate = useNavigate();
-  const { showToast } = useToast();
 
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
+
+  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [orderId, setOrderId] = useState<number | null>(null);
 
-  const total = useMemo(() => {
-    if (!cart?.lignes) return 0;
-    return (cart.lignes as CartLine[]).reduce(
-      (sum: number, l: CartLine) => sum + Number(l.sous_total ?? 0),
-      0
-    );
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const c = await getActiveCart();
+        if (controller.signal.aborted) return;
+        setCart(c);
+      } catch (e: any) {
+        if (isCanceledError(e) || controller.signal.aborted) return;
+        setError("Impossible de charger le panier.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => controller.abort();
+  }, []);
+
+  const canCheckout = useMemo(() => !!cart && cart.lignes.length > 0, [cart]);
+
+  const items = useMemo(() => {
+    if (!cart) return [];
+    return cart.lignes.map((l) => ({ offre: l.offre, quantite: l.quantite }));
   }, [cart]);
 
-  async function handleCreateOrder() {
-    if (!cart) return;
+  async function onCreateOrder() {
+    if (!canCheckout) return;
+
     setCreating(true);
+    setError(null);
+
     try {
-      const order = await createOrder({ panier: cart.id });
-      setOrderId(order.id);
-      showToast(`Commande créée #${order.numero_commande}`, "success");
-    } catch {
-      showToast("Création de la commande impossible.", "error");
+      const created = await createOrder({ items });
+      setOrder(created);
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail;
+      setError(msg ? String(msg) : "Création de commande impossible.");
     } finally {
       setCreating(false);
-      await refresh();
     }
   }
 
-  async function handlePay() {
-    if (!orderId) {
-      showToast("Aucune commande à payer.", "warning");
-      return;
-    }
+  async function onPayOrder() {
+    if (!order) return;
+
     setPaying(true);
+    setError(null);
+
     try {
-      await payOrder(orderId, {
-        methode_paiement: "MockPaiement",
-        reference_paiement: `WEB-${Date.now()}`,
-      });
-      showToast("Paiement validé, billets générés.", "success");
-      navigate("/tickets");
-    } catch {
-      showToast("Le paiement a échoué.", "error");
+      const updated = await payOrder(order.id, { reference_paiement: `MOCK-${order.numero_commande}` });
+      setOrder(updated);
+      navigate(`/mon-espace/commandes/${updated.id}`);
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail;
+      setError(msg ? String(msg) : "Paiement impossible.");
     } finally {
       setPaying(false);
     }
   }
 
-  if (!cart || (cart.lignes?.length ?? 0) === 0) {
-    return (
-      <div className="p-6">
-        <div className="alert">
-          <span>Ton panier est vide. Ajoute des offres avant de passer au paiement.</span>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl md:text-3xl font-bold">Paiement</h1>
+    <div style={{ padding: "1.5rem" }}>
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, marginBottom: "1rem" }}>Paiement</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Récap panier */}
-        <div className="lg:col-span-2 card bg-base-100 shadow">
-          <div className="card-body p-0">
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Offre</th>
-                    <th>PU</th>
-                    <th>Qté</th>
-                    <th>Sous-total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(cart.lignes as CartLine[]).map((l: CartLine) => (
-                    <tr key={l.id}>
-                      <td>{l.offre_nom ?? `Offre #${l.offre}`}</td>
-                      <td>{formatCurrency(Number(l.prix_unitaire ?? 0))}</td>
-                      <td>{l.quantite}</td>
-                      <td>{formatCurrency(Number(l.sous_total ?? 0))}</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td colSpan={3} className="text-right font-semibold">Total</td>
-                    <td className="font-semibold">{formatCurrency(total)}</td>
-                  </tr>
-                </tbody>
-              </table>
+      {error && (
+        <div style={{ marginBottom: "1rem", padding: "0.75rem 1rem", border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.08)", borderRadius: 12 }}>
+          {error}
+        </div>
+      )}
+
+      {!cart || cart.lignes.length === 0 ? (
+        <div>
+          Panier vide. <Link to="/mon-espace/panier">Retour au panier</Link>
+        </div>
+      ) : (
+        <>
+          <div style={{ border: "1px solid rgba(15,23,42,0.12)", borderRadius: 14, padding: "1rem" }}>
+            <div style={{ fontWeight: 900, marginBottom: 10 }}>Récapitulatif</div>
+
+            <div style={{ display: "grid", gap: "0.6rem" }}>
+              {cart.lignes.map((l) => (
+                <div key={l.id} style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>Offre #{l.offre}</div>
+                    <div style={{ opacity: 0.75 }}>Quantité: {l.quantite}</div>
+                  </div>
+                  <div style={{ fontWeight: 900 }}>{fmtMoney(l.sous_total)}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: "0.8rem", display: "flex", justifyContent: "space-between" }}>
+              <div style={{ fontWeight: 900 }}>Total</div>
+              <div style={{ fontWeight: 900 }}>{fmtMoney(cart.montant_total)}</div>
             </div>
           </div>
-        </div>
 
-        {/* Actions paiement */}
-        <div className="card bg-base-100 shadow">
-          <div className="card-body space-y-3">
-            <h2 className="card-title">Finaliser</h2>
-            <p className="text-sm opacity-70">
-              Le paiement génère automatiquement tes e-billets (QR codes).
-            </p>
+          <div style={{ marginTop: "1rem", display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
+            {!order ? (
+              <button onClick={onCreateOrder} disabled={!canCheckout || creating}>
+                {creating ? "Création…" : "Créer la commande"}
+              </button>
+            ) : (
+              <>
+                <div style={{ padding: "0.6rem 0.9rem", border: "1px solid rgba(15,23,42,0.12)", borderRadius: 12 }}>
+                  Commande: <strong>{order.numero_commande}</strong> — Statut: <strong>{order.statut}</strong>
+                </div>
 
-            <button
-              className="btn btn-outline w-full"
-              onClick={handleCreateOrder}
-              disabled={creating || !!orderId}
-            >
-              {creating ? <span className="loading loading-spinner loading-xs" /> : "Créer la commande"}
-            </button>
+                <button onClick={onPayOrder} disabled={paying || (order.statut || "").toUpperCase() !== "EN_ATTENTE"}>
+                  {paying ? "Paiement…" : "Payer (mock)"}
+                </button>
 
-            <button
-              className="btn btn-primary w-full"
-              onClick={handlePay}
-              disabled={paying || !orderId}
-            >
-              {paying ? <span className="loading loading-spinner loading-xs" /> : "Payer maintenant"}
-            </button>
+                <Link to={`/mon-espace/commandes/${order.id}`} style={{ textDecoration: "none" }}>
+                  Voir la commande
+                </Link>
 
-            {!!orderId && (
-              <div className="alert alert-success mt-2">
-                <span>Commande prête (# {orderId}). Tu peux procéder au paiement.</span>
-              </div>
+                <Link to="/mon-espace/billets" style={{ textDecoration: "none" }}>
+                  Mes billets
+                </Link>
+              </>
             )}
+
+            <Link to="/mon-espace/panier" style={{ textDecoration: "none" }}>
+              Retour au panier
+            </Link>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

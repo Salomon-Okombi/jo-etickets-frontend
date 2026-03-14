@@ -1,174 +1,121 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { getOrder, payOrder, type Order } from "@/api/orders.api";
-import { formatCurrency, formatDateTime } from "@/utils/format";
-import useToast from "@/hooks/useToast";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import type { Order } from "@/types/orders";
+import { getOrder, payOrder } from "@/api/orders.api";
+
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
+}
+
+function fmtMoney(v: number | string) {
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
+
+function fmtDate(v?: string | null) {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("fr-FR");
+}
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
   const navigate = useNavigate();
-  const { showToast } = useToast();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    if (!orderId) return;
-    setLoading(true);
-    try {
-      const data = await getOrder(orderId);
-      setOrder(data);
-    } catch {
-      showToast("Impossible de charger la commande.", "error");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const canPay = useMemo(() => (order?.statut || "").toUpperCase() === "EN_ATTENTE", [order]);
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const controller = new AbortController();
+
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getOrder(orderId);
+        if (controller.signal.aborted) return;
+        setOrder(data);
+      } catch (e: any) {
+        if (isCanceledError(e) || controller.signal.aborted) return;
+        setError("Impossible de charger la commande.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    if (Number.isFinite(orderId) && orderId > 0) load();
+    return () => controller.abort();
   }, [orderId]);
 
-  async function handlePay() {
+  async function onPay() {
     if (!order) return;
     setPaying(true);
+    setError(null);
+
     try {
-      await payOrder(order.id, {
-        methode_paiement: "MockPaiement",
-        reference_paiement: `WEB-${Date.now()}`,
-      });
-      showToast("Paiement validé, billets générés !", "success");
-      await load();
-    } catch {
-      showToast("Le paiement a échoué.", "error");
+      const updated = await payOrder(order.id, { reference_paiement: `MOCK-${order.numero_commande}` });
+      setOrder(updated);
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail;
+      setError(msg ? String(msg) : "Paiement impossible.");
     } finally {
       setPaying(false);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="p-6 flex justify-center">
-        <span className="loading loading-spinner loading-lg" />
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="p-6">
-        <div className="alert">
-          <span>Commande introuvable.</span>
-        </div>
-      </div>
-    );
-  }
-
-  const isPaid = order.statut_paiement === "PAYE";
-  const lines = order.panier_detail?.lignes ?? [];
+  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
+  if (!order) return <div style={{ padding: "2rem" }}>{error ?? "Commande introuvable."}</div>;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl md:text-3xl font-bold">
-          Commande #{order.numero_commande}
-        </h1>
-        <div className="flex gap-2">
-          <button className="btn btn-outline" onClick={load}>
-            Actualiser
-          </button>
-          <Link className="btn" to="/orders">
-            Mes commandes
-          </Link>
-        </div>
+    <div style={{ padding: "1.5rem" }}>
+      <button onClick={() => navigate(-1)} style={{ marginBottom: "1rem" }}>← Retour</button>
+
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 800 }}>{order.numero_commande}</h1>
+
+      <div style={{ opacity: 0.8, marginTop: 6 }}>
+        Statut: <strong>{order.statut}</strong> — Total: <strong>{fmtMoney(order.total)}</strong>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 card bg-base-100 shadow">
-          <div className="card-body p-0">
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Offre</th>
-                    <th>Prix unitaire</th>
-                    <th>Quantité</th>
-                    <th>Sous-total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((l) => (
-                    <tr key={l.id}>
-                      <td>{l.offre_nom ?? `Offre #${l.offre}`}</td>
-                      <td>{formatCurrency(Number(l.prix_unitaire ?? 0))}</td>
-                      <td>{l.quantite}</td>
-                      <td>{formatCurrency(Number(l.sous_total ?? 0))}</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td colSpan={3} className="text-right font-semibold">
-                      Total
-                    </td>
-                    <td className="font-semibold">
-                      {formatCurrency(Number(order.montant_total ?? 0))}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+      <div style={{ opacity: 0.7, marginTop: 6 }}>
+        Créée: {fmtDate(order.date_creation)} — Payée: {fmtDate(order.date_paiement)} — Réf: {order.reference_paiement ?? "—"}
+      </div>
+
+      {error && (
+        <div style={{ marginTop: "1rem", padding: "0.75rem 1rem", border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.08)", borderRadius: 12 }}>
+          {error}
+        </div>
+      )}
+
+      <h2 style={{ marginTop: "1.2rem", fontSize: "1.2rem", fontWeight: 800 }}>Lignes</h2>
+
+      <div style={{ marginTop: "0.6rem", display: "grid", gap: "0.6rem" }}>
+        {order.lignes.map((l) => (
+          <div key={l.id} style={{ border: "1px solid rgba(15,23,42,0.12)", borderRadius: 12, padding: "0.75rem 1rem" }}>
+            <div style={{ fontWeight: 800 }}>{l.offre_nom}</div>
+            <div style={{ opacity: 0.8, marginTop: 4 }}>
+              Quantité: {l.quantite} — PU: {fmtMoney(l.prix_unitaire)} — Sous-total: {fmtMoney(l.sous_total)}
             </div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        <div className="card bg-base-100 shadow">
-          <div className="card-body space-y-3">
-            <h2 className="card-title">Paiement</h2>
+      <div style={{ marginTop: "1.2rem", display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
+        <button onClick={onPay} disabled={!canPay || paying}>
+          {paying ? "Paiement…" : "Payer (mock)"}
+        </button>
 
-            <div className="stats shadow w-full">
-              <div className="stat">
-                <div className="stat-title">Statut</div>
-                <div
-                  className={`stat-value ${
-                    isPaid ? "text-success" : "text-warning"
-                  }`}
-                >
-                  {order.statut_paiement}
-                </div>
-                <div className="stat-desc">
-                  {order.methode_paiement ?? "—"}
-                </div>
-              </div>
-            </div>
-
-            <p className="text-sm opacity-70">
-              Commande créée le{" "}
-              {formatDateTime(order.date_commande ?? "")}
-            </p>
-
-            {!isPaid ? (
-              <button
-                className="btn btn-primary w-full"
-                onClick={handlePay}
-                disabled={paying}
-              >
-                {paying ? (
-                  <span className="loading loading-spinner loading-xs" />
-                ) : (
-                  "Payer maintenant"
-                )}
-              </button>
-            ) : (
-              <button
-                className="btn w-full"
-                onClick={() => navigate("/tickets")}
-              >
-                Voir mes billets
-              </button>
-            )}
-          </div>
-        </div>
+        {(order.statut || "").toUpperCase() === "PAYEE" ? (
+          <Link to="/mon-espace/billets" style={{ textDecoration: "none" }}>
+            Voir mes billets
+          </Link>
+        ) : null}
       </div>
     </div>
   );

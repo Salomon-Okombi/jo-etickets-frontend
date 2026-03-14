@@ -1,96 +1,41 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "@/api/axiosClient";
-import useToast from "@/hooks/useToast";
+import type { Order, OrderStatus } from "@/types/orders";
+import { listOrders, unwrapOrders } from "@/api/orders.api";
 import "@/styles/admin.css";
 
-/**
- * Page Admin : Commandes
- * - Liste + recherche + filtre statut + pagination
- * - Compatible endpoints backend variables (orders/commandes)
- */
+type StatusFilter = "" | "EN_ATTENTE" | "PAYEE" | "ANNULEE";
+type OrderingValue = "-date_creation" | "date_creation" | "-total" | "total" | "numero_commande" | "-numero_commande";
 
-type OrderStatus = "PAYEE" | "EN_ATTENTE" | "ANNULEE" | "REMBOURSEE" | string;
-
-type Order = {
-  id: number;
-  numero?: string;
-
-  utilisateur?: number;
-  utilisateur_nom?: string;
-
-  total?: number | string;
-  montant?: number | string;
-
-  statut?: OrderStatus;
-  status?: OrderStatus;
-
-  created_at?: string;
-  date_creation?: string;
-};
-
-type Paginated<T> = {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-};
-
-function normalizeStatus(o: Order): string {
-  return (o.statut ?? o.status ?? "—").toString();
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
 }
 
-function normalizeTotal(o: Order): string {
-  const v = o.total ?? o.montant;
-  if (v === undefined || v === null) return "—";
-  const num = typeof v === "string" ? Number(v) : v;
-  if (Number.isFinite(num)) return num.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-  return String(v);
+function fmtMoney(v: number | string) {
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 }
 
-function normalizeDate(o: Order): string {
-  const d = o.created_at ?? o.date_creation;
-  if (!d) return "—";
-  try {
-    return new Date(d).toLocaleString("fr-FR");
-  } catch {
-    return d;
-  }
+function fmtDate(v?: string | null) {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("fr-FR");
 }
 
-function statusBadge(status: string) {
-  const s = status.toUpperCase();
-  if (["PAYEE", "PAID", "SUCCES", "SUCCESS"].includes(s)) return "admin-badge admin-badge--ok";
-  if (["EN_ATTENTE", "PENDING"].includes(s)) return "admin-badge admin-badge--warn";
-  if (["ANNULEE", "CANCELED", "CANCELLED", "REMBOURSEE", "REFUNDED"].includes(s)) return "admin-badge admin-badge--danger";
+function badgeClass(statut: OrderStatus) {
+  const s = (statut || "").toUpperCase();
+  if (s === "PAYEE") return "admin-badge admin-badge--ok";
+  if (s === "EN_ATTENTE") return "admin-badge admin-badge--warn";
+  if (s === "ANNULEE") return "admin-badge admin-badge--danger";
   return "admin-badge admin-badge--muted";
 }
 
-async function fetchWithFallback<T>(paths: string[], params: any, signal: AbortSignal) {
-  let lastErr: any = null;
-
-  for (const path of paths) {
-    try {
-      const { data } = await api.get<T>(path, { params, signal });
-      return { data, usedPath: path };
-    } catch (err: any) {
-      lastErr = err;
-      // si 404, on tente le prochain endpoint
-      const status = err?.response?.status;
-      if (status === 404) continue;
-      // autre erreur = on stop
-      throw err;
-    }
-  }
-
-  throw lastErr ?? new Error("Aucun endpoint Orders valide trouvé.");
-}
-
 export default function OrdersAdminListPage() {
-  const { showToast } = useToast();
+  const [rows, setRows] = useState<Order[]>([]);
+  const [count, setCount] = useState(0);
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [ordersCount, setOrdersCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,11 +45,11 @@ export default function OrdersAdminListPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
+  const [ordering, setOrdering] = useState<OrderingValue>("-date_creation");
 
-  const [endpointUsed, setEndpointUsed] = useState<string>("");
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(count / pageSize)), [count, pageSize]);
 
-  // debounce recherche
   useEffect(() => {
     const t = window.setTimeout(() => {
       setPage(1);
@@ -116,216 +61,140 @@ export default function OrdersAdminListPage() {
   useEffect(() => {
     const controller = new AbortController();
 
-    async function fetchOrders() {
+    async function load() {
       try {
         setLoading(true);
         setError(null);
 
-        const params: Record<string, string | number> = { page, page_size: pageSize };
+        const params: Record<string, any> = { page, page_size: pageSize, ordering };
         if (search) params.search = search;
-        if (statusFilter) params.statut = statusFilter; // côté backend, ça peut être "status" -> on test aussi en fallback plus bas
+        if (statusFilter) params.statut = statusFilter;
 
-        const endpoints = [
-          "/orders/",
-          "/commandes/",
-          "/paiements/orders/",
-          "/paiements/commandes/",
-        ];
+        const data = await listOrders(params as any);
+        if (controller.signal.aborted) return;
 
-        // try #1 : statut via "statut"
-        try {
-          const res = await fetchWithFallback<Paginated<Order>>(endpoints, params, controller.signal);
-          setEndpointUsed(res.usedPath);
-          setOrders(res.data.results);
-          setOrdersCount(res.data.count);
-          return;
-        } catch (e: any) {
-          // try #2 : statut via "status"
-          if (statusFilter) {
-            const params2 = { ...params };
-            delete (params2 as any).statut;
-            (params2 as any).status = statusFilter;
-
-            const res2 = await fetchWithFallback<Paginated<Order>>(endpoints, params2, controller.signal);
-            setEndpointUsed(res2.usedPath);
-            setOrders(res2.data.results);
-            setOrdersCount(res2.data.count);
-            return;
-          }
-          throw e;
-        }
-      } catch (err: any) {
-        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
-        console.error("Admin Orders: fetch error =", err);
+        const u = unwrapOrders(data);
+        setRows(u.rows);
+        setCount(u.count);
+      } catch (e: any) {
+        if (isCanceledError(e) || controller.signal.aborted) return;
         setError("Chargement des commandes impossible.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
-    fetchOrders();
+    load();
     return () => controller.abort();
-  }, [page, pageSize, search, statusFilter]);
-
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(ordersCount / pageSize)), [ordersCount, pageSize]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-
-  async function copyText(text: string, label = "Copié") {
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(`${label} ✅`, "success");
-    } catch {
-      showToast("Impossible de copier (permissions navigateur).", "error");
-    }
-  }
+  }, [page, pageSize, search, statusFilter, ordering]);
 
   return (
     <div className="admin-page">
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Commandes</div>
         <div className="admin-subtitle">
-          Liste des commandes/paiements : statut, montant, utilisateur.{" "}
-          <span className="admin-text-muted" style={{ fontSize: "0.85rem" }}>
-            {endpointUsed ? `Endpoint utilisé : ${endpointUsed}` : ""}
-          </span>
+          Suivi des commandes (en attente / payées / annulées).{" "}
+          <span className="admin-text-muted">{count.toLocaleString("fr-FR")} commande(s)</span>
         </div>
       </div>
 
-      {error ? (
-        <div className="admin-alert" role="alert">
-          {error}
-        </div>
-      ) : null}
+      {error && <div className="admin-alert">{error}</div>}
 
       <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
         <div className="admin-table-head">
           <div>
             <div className="admin-table-title">Liste des commandes</div>
             <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
-              {ordersCount.toLocaleString("fr-FR")} commande(s) au total
+              Recherche + filtre statut + tri + pagination
             </div>
           </div>
 
           <div className="admin-table-tools">
             <input
               className="admin-input"
+              placeholder="Recherche (numéro, email...)"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Recherche (id, numéro, utilisateur)"
             />
 
-            <select
-              className="admin-select"
-              value={statusFilter}
-              onChange={(e) => {
-                setPage(1);
-                setStatusFilter(e.target.value);
-              }}
-            >
+            <select className="admin-select" value={statusFilter} onChange={(e) => { setPage(1); setStatusFilter(e.target.value as any); }}>
               <option value="">Tous statuts</option>
-              <option value="PAYEE">PAYÉE</option>
-              <option value="EN_ATTENTE">EN ATTENTE</option>
-              <option value="ANNULEE">ANNULÉE</option>
-              <option value="REMBOURSEE">REMBOURSÉE</option>
+              <option value="EN_ATTENTE">EN_ATTENTE</option>
+              <option value="PAYEE">PAYEE</option>
+              <option value="ANNULEE">ANNULEE</option>
             </select>
 
-            <select
-              className="admin-select"
-              value={pageSize}
-              onChange={(e) => {
-                setPage(1);
-                setPageSize(Number(e.target.value));
-              }}
-            >
+            <select className="admin-select" value={ordering} onChange={(e) => { setPage(1); setOrdering(e.target.value as any); }}>
+              <option value="-date_creation">Création (récent)</option>
+              <option value="date_creation">Création (ancien)</option>
+              <option value="-total">Total (desc)</option>
+              <option value="total">Total (asc)</option>
+              <option value="numero_commande">Numéro (A→Z)</option>
+              <option value="-numero_commande">Numéro (Z→A)</option>
+            </select>
+
+            <select className="admin-select" value={pageSize} onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)); }}>
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
             </select>
-
-            <button
-              className="admin-btn"
-              onClick={() => {
-                setPage(1);
-                setSearch(searchInput.trim());
-              }}
-            >
-              Appliquer
-            </button>
           </div>
         </div>
 
         {loading ? (
           <div className="admin-table-state">Chargement…</div>
-        ) : orders.length === 0 ? (
-          <div className="admin-table-state">Aucune commande trouvée.</div>
+        ) : rows.length === 0 ? (
+          <div className="admin-table-state">Aucune commande.</div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className="admin-table-scroll">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>Numéro</th>
                   <th>Utilisateur</th>
-                  <th>Statut</th>
-                  <th>Montant</th>
-                  <th>Date</th>
+                  <th className="admin-td-center">Statut</th>
+                  <th className="admin-td-right">Total</th>
+                  <th>Dates</th>
                   <th className="admin-td-right">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {orders.map((o) => {
-                  const status = normalizeStatus(o);
-                  const userLabel = o.utilisateur_nom ?? (o.utilisateur ? `Utilisateur #${o.utilisateur}` : "—");
-                  const orderNumber = o.numero ?? String(o.id);
-
-                  return (
-                    <tr key={o.id}>
-                      <td>{orderNumber}</td>
-                      <td>{userLabel}</td>
-                      <td>
-                        <span className={statusBadge(status)}>{status}</span>
-                      </td>
-                      <td>{normalizeTotal(o)}</td>
-                      <td>{normalizeDate(o)}</td>
-                      <td className="admin-td-right">
-                        {/* Ajuste cette route si tu as un détail admin commande */}
-                        <Link
-                          className="admin-btn admin-btn--sm"
-                          to={`/admin/commandes/${o.id}`}
-                          style={{ marginRight: "0.4rem" }}
-                        >
-                          Détails
-                        </Link>
-
-                        <button className="admin-btn admin-btn--sm" onClick={() => copyText(String(o.id), "ID copié")}>
-                          Copier ID
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {rows.map((o) => (
+                  <tr key={o.id}>
+                    <td style={{ fontWeight: 800 }}>{o.numero_commande}</td>
+                    <td>
+                      <div style={{ fontWeight: 700 }}>{o.utilisateur_nom}</div>
+                      <div className="admin-td-muted" style={{ fontSize: "0.82rem", marginTop: 3 }}>
+                        user_id: {o.utilisateur}
+                      </div>
+                    </td>
+                    <td className="admin-td-center">
+                      <span className={badgeClass(o.statut)}>{o.statut}</span>
+                    </td>
+                    <td className="admin-td-right">{fmtMoney(o.total)}</td>
+                    <td className="admin-td-muted">
+                      Créée: {fmtDate(o.date_creation)}
+                      <br />
+                      Payée: {fmtDate(o.date_paiement)}
+                    </td>
+                    <td className="admin-td-right">
+                      <Link className="admin-btn admin-btn--xs" to={`/admin/commandes/${o.id}`}>
+                        Détail
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
 
             <div className="admin-table-footer">
               <div className="admin-table-footer__text">
-                {ordersCount.toLocaleString("fr-FR")} commande(s) — page {page} / {totalPages}
+                {count.toLocaleString("fr-FR")} commande(s) — page {page} / {totalPages}
               </div>
-
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="admin-btn admin-btn--sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                  ←
-                </button>
-                <button
-                  className="admin-btn admin-btn--sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  →
-                </button>
+                <button className="admin-btn admin-btn--sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>←</button>
+                <button className="admin-btn admin-btn--sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>→</button>
               </div>
             </div>
           </div>

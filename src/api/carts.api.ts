@@ -1,110 +1,83 @@
-// src/api/carts.api.ts
 import { api } from "./axiosClient";
+import type { Cart, CartLine } from "@/types/carts";
 
-/* ------------------------------------------------------------------
-   Types alignés sur le backend
------------------------------------------------------------------- */
-export interface Offer {
-  id: number;
-  nom_offre: string;
-  description: string;
-  prix: number;
-  nb_personnes: number;
-  type_offre: string;
-  stock_disponible: number;
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
 }
 
-export interface CartLine {
-  id: number;
-  offre: number; // ID de l’offre
-  offre_nom?: string;
-  offre_prix?: string;
-  quantite: number;
-  prix_unitaire: string;
-  sous_total: string;
-  date_ajout: string;
+function unwrapCart(data: any): Cart {
+  return {
+    id: Number(data?.id ?? 0),
+    statut: String(data?.statut ?? "ACTIF"),
+    montant_total: data?.montant_total ?? "0.00",
+    lignes: Array.isArray(data?.lignes)
+      ? data.lignes.map((l: any): CartLine => ({
+          id: Number(l.id),
+          offre: Number(l.offre),
+          quantite: Number(l.quantite ?? 1),
+          prix_unitaire: l.prix_unitaire,
+          sous_total: l.sous_total,
+          date_ajout: l.date_ajout,
+        }))
+      : [],
+  };
 }
 
-export type CartStatus = "ACTIF" | "VALIDE" | "ABANDONNE" | "EXPIRE";
-
-export interface Cart {
-  id: number;
-  utilisateur: number;
-  statut: CartStatus;
-  montant_total: string;
-  date_creation: string;
-  date_expiration: string | null;
-  lignes: CartLine[];
-}
-
-export interface Paginated<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
-
-/* ------------------------------------------------------------------
-   Endpoints : /api/paniers/
------------------------------------------------------------------- */
-
-/**
- * GET /paniers/ — liste paginée des paniers de l’utilisateur connecté.
- */
-export async function listCarts(params?: {
-  page?: number;
-}): Promise<Paginated<Cart>> {
-  const { data } = await api.get<Paginated<Cart>>("/paniers/", { params });
-  return data;
+function unwrapPaginated<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 /**
- * POST /paniers/add/ — ajouter une offre au panier actif.
+ * Ton backend renvoie une LISTE de paniers via /paniers/
+ * On récupère le panier ACTIF le plus récent.
  */
-export async function addToCart(
-  offreId: number,
-  quantite: number
-): Promise<CartLine> {
-  const payload = { offre: offreId, quantite };
-  const { data } = await api.post<CartLine>("/paniers/add/", payload);
-  return data;
+export async function getActiveCart(): Promise<Cart | null> {
+  const { data } = await api.get("/paniers/");
+  const carts = unwrapPaginated<any>(data);
+
+  const actif = carts.find((c) => String(c.statut).toUpperCase() === "ACTIF");
+  if (!actif) return null;
+
+  return unwrapCart(actif);
 }
 
 /**
- * DELETE /paniers/{panier_id}/supprimer-ligne/{ligne_id}/ — supprimer une ligne.
+ * Ajout au panier via l'action:
+ * POST /paniers/add/ {offre, quantite}
+ * Ton serializer LignePanier accepte "offre" (id) + "quantite"
  */
-export async function deleteCartLine(
-  panierId: number,
-  ligneId: number
-): Promise<void> {
+export async function addToCart(offre: number, quantite = 1): Promise<void> {
+  await api.post("/paniers/add/", { offre, quantite });
+}
+
+/**
+ * Suppression d'une ligne:
+ * DELETE /paniers/{panier_id}/supprimer-ligne/{ligne_id}/
+ */
+export async function removeCartLine(panierId: number, ligneId: number): Promise<void> {
   await api.delete(`/paniers/${panierId}/supprimer-ligne/${ligneId}/`);
 }
 
 /**
- * DELETE /paniers/{id}/ — supprimer un panier complet.
+ * Diminution quantité sans endpoint dédié:
+ * - si quantite==1 -> supprimer
+ * - sinon -> supprimer la ligne puis ré-ajouter la même offre avec quantite-1
  */
-export async function deleteCart(panierId: number): Promise<void> {
-  await api.delete(`/paniers/${panierId}/`);
-}
-
-/* ------------------------------------------------------------------
-   Utilitaires front
------------------------------------------------------------------- */
-
-/**
- * Récupère le panier ACTIF de l’utilisateur s’il existe.
- */
-export async function getActiveCart(): Promise<Cart | null> {
-  const page1 = await listCarts({ page: 1 });
-  return page1.results.find((c) => c.statut === "ACTIF") ?? null;
+export async function decreaseLine(panierId: number, line: CartLine): Promise<void> {
+  if (line.quantite <= 1) {
+    await removeCartLine(panierId, line.id);
+    return;
+  }
+  await removeCartLine(panierId, line.id);
+  await addToCart(line.offre, line.quantite - 1);
 }
 
 /**
- * Calcule le total côté front à partir des lignes.
+ * Augmentation quantité:
+ * on utilise addToCart(offre, 1)
  */
-export function computeCartTotal(cart: Cart): number {
-  return cart.lignes.reduce(
-    (sum, line) => sum + parseFloat(line.sous_total ?? "0"),
-    0
-  );
+export async function increaseLine(line: CartLine): Promise<void> {
+  await addToCart(line.offre, 1);
 }

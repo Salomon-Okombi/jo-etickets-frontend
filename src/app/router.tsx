@@ -29,11 +29,14 @@ import OrderDetailPage from "@/pages/Client/OrderDetailPage";
 import TicketsListPage from "@/pages/Client/TicketsListPage";
 import TicketDetailPage from "@/pages/Client/TicketDetailPage";
 
+
 // Pages – Admin
 import BilletAdminDetailPage from "@/pages/Admin/Billets/BilletAdminDetailPage";
 import DashboardPage from "@/pages/Admin/DashboardPage";
 import BilletAdminCreatePage from "@/pages/Admin/Billets/BilletAdminCreatePage";
 import BilletAdminEditPage from "@/pages/Admin/Billets/BilletAdminEditPage";
+import OrderAdminDetailPage from "@/pages/Admin/Orders/OrderAdminDetailPage";
+
 
 
 import EventsAdminListPage from "@/pages/Admin/Events/EventsAdminList";
@@ -99,6 +102,7 @@ export const router = createBrowserRouter([
 
           { path: "billets", element: <TicketsListPage /> },
           { path: "billets/:id", element: <TicketDetailPage /> },
+
         ],
       },
 
@@ -115,12 +119,13 @@ export const router = createBrowserRouter([
           { index: true, element: <DashboardPage /> },
           { path: "dashboard", element: <DashboardPage /> },
 
-          // ✅ Commandes (Admin)
+          // Commandes (Admin)
           { path: "commandes", element: <OrdersAdminListPage /> },
           // Alias pratique : /admin/orders -> /admin/commandes
           { path: "orders", element: <Navigate to="/admin/commandes" replace /> },
+          { path: "commandes/:id", element: <OrderAdminDetailPage /> },
 
-          // ✅ Billets / Tickets (Admin)
+          // Billets / Tickets (Admin)
           { path: "billets", element: <BilletsAdminListPage /> },
           // Alias pratique : /admin/tickets -> /admin/billets
           { path: "tickets", element: <Navigate to="/admin/billets" replace /> },

@@ -1,127 +1,147 @@
-// src/pages/Client/CartPage.tsx (ou chemin équivalent)
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import useCart from "@/hooks/useCart";
-import { deleteCartLine, type CartLine } from "@/api/carts.api";
-import { formatCurrency } from "@/utils/format";
-import useToast from "@/hooks/useToast";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { Cart, CartLine } from "@/types/carts";
+import { getActiveCart, increaseLine, decreaseLine, removeCartLine } from "@/api/carts.api";
+
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
+}
+
+function fmtMoney(v?: number | string) {
+  if (v === undefined || v === null) return "—";
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
 
 export default function CartPage() {
-  const { cart, refresh } = useCart();
-  const [removing, setRemoving] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
 
-  async function handleRemoveLine(ligneId: number) {
-    if (!cart) return;
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function refresh() {
+    setLoading(true);
+    setError(null);
     try {
-      setRemoving(true);
-      await deleteCartLine(cart.id, ligneId);
-      toast.success("Ligne supprimée.");
-      await refresh();
-    } catch {
-      toast.error("Suppression impossible.");
+      const c = await getActiveCart();
+      setCart(c);
+    } catch (e: any) {
+      if (isCanceledError(e)) return;
+      setError("Impossible de charger le panier.");
     } finally {
-      setRemoving(false);
+      setLoading(false);
     }
   }
 
-  const hasLines = (cart?.lignes?.length ?? 0) > 0;
+  useEffect(() => {
+    refresh();
+  }, []);
 
-  const total = cart
-    ? (cart.lignes as CartLine[]).reduce(
-        (s: number, l: CartLine) => s + Number(l.sous_total ?? 0),
-        0
-      )
-    : 0;
+  const total = useMemo(() => {
+    if (!cart) return 0;
+    if (cart.montant_total !== undefined) return Number(cart.montant_total) || 0;
+    return cart.lignes.reduce((acc, l) => acc + (Number(l.sous_total) || 0), 0);
+  }, [cart]);
+
+  async function onPlus(line: CartLine) {
+    try {
+      setBusyId(line.id);
+      setError(null);
+      await increaseLine(line);
+      await refresh();
+    } catch {
+      setError("Impossible d’augmenter la quantité.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function onMinus(line: CartLine) {
+    if (!cart) return;
+    try {
+      setBusyId(line.id);
+      setError(null);
+      await decreaseLine(cart.id, line);
+      await refresh();
+    } catch {
+      setError("Impossible de diminuer la quantité.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function onRemove(line: CartLine) {
+    if (!cart) return;
+    const ok = window.confirm("Supprimer cette ligne du panier ?");
+    if (!ok) return;
+
+    try {
+      setBusyId(line.id);
+      setError(null);
+      await removeCartLine(cart.id, line.id);
+      await refresh();
+    } catch {
+      setError("Suppression impossible.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold">Mon panier</h1>
-        <div className="flex gap-2">
-          <button
-            className="btn btn-outline"
-            onClick={() => refresh()}
-            disabled={!cart}
-          >
-            Actualiser
-          </button>
-          <Link className="btn" to="/offers">
-            Poursuivre les achats
-          </Link>
-        </div>
-      </div>
+    <div style={{ padding: "1.5rem" }}>
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, marginBottom: "1rem" }}>Mon panier</h1>
 
-      {!cart ? (
-        <div className="alert">
-          <span>Pas de panier actif. Ajoute d’abord une offre.</span>
-        </div>
-      ) : !hasLines ? (
-        <div className="alert">
-          <span>Ton panier est vide.</span>
-        </div>
-      ) : (
-        <div className="card bg-base-100 shadow">
-          <div className="card-body p-0">
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Offre</th>
-                    <th>Prix unitaire</th>
-                    <th>Quantité</th>
-                    <th>Sous-total</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(cart.lignes as CartLine[]).map((l: CartLine) => (
-                    <tr key={l.id}>
-                      <td>{l.offre_nom ?? `Offre #${l.offre}`}</td>
-                      <td>{formatCurrency(Number(l.prix_unitaire ?? 0))}</td>
-                      <td>{l.quantite}</td>
-                      <td>{formatCurrency(Number(l.sous_total ?? 0))}</td>
-                      <td className="text-right">
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() => handleRemoveLine(l.id)}
-                          disabled={removing}
-                        >
-                          {removing ? (
-                            <span className="loading loading-spinner loading-xs" />
-                          ) : (
-                            "Supprimer"
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td colSpan={3} className="text-right font-semibold">
-                      Total
-                    </td>
-                    <td className="font-semibold">
-                      {formatCurrency(total)}
-                    </td>
-                    <td />
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {error && (
+        <div style={{ marginBottom: "1rem", padding: "0.75rem 1rem", border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.08)", borderRadius: 12 }}>
+          {error}
         </div>
       )}
 
-      <div className="flex justify-end">
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate("/checkout")}
-          disabled={!hasLines}
-        >
-          Passer au paiement
-        </button>
-      </div>
+      {!cart || cart.lignes.length === 0 ? (
+        <div>Votre panier est vide.</div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gap: "0.8rem" }}>
+            {cart.lignes.map((l) => {
+              const isBusy = busyId === l.id;
+              return (
+                <div key={l.id} style={{ border: "1px solid rgba(15,23,42,0.12)", borderRadius: 14, padding: "1rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>Offre #{l.offre}</div>
+                      <div style={{ opacity: 0.8, marginTop: 4 }}>
+                        PU: <strong>{fmtMoney(l.prix_unitaire)}</strong> — Total ligne: <strong>{fmtMoney(l.sous_total)}</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+                      <button disabled={isBusy} onClick={() => onMinus(l)}>−</button>
+                      <div style={{ minWidth: 24, textAlign: "center" }}>{l.quantite}</div>
+                      <button disabled={isBusy} onClick={() => onPlus(l)}>+</button>
+                      <button disabled={isBusy} onClick={() => onRemove(l)}>Supprimer</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: "1rem", display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 900 }}>
+              Total panier : {fmtMoney(total)}
+            </div>
+
+            <button onClick={() => navigate("/mon-espace/checkout")}>
+              Passer au paiement
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

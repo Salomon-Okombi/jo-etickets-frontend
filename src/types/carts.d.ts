@@ -1,22 +1,15 @@
-export type CartStatus = "ACTIF" | "VALIDE" | "ABANDONNE" | "EXPIRE";
-
 export interface CartLine {
   id: number;
-  offre: number;               // ID de l’offre
-  offre_nom?: string;          // fourni par certaines réponses
-  offre_prix?: string;         // idem
+  offre: number;
   quantite: number;
-  prix_unitaire: string;       // ex: "150.00"
-  sous_total: string;          // ex: "300.00"
-  date_ajout: string;          // ISO datetime
+  prix_unitaire?: number | string;
+  sous_total?: number | string;
+  date_ajout?: string;
 }
 
 export interface Cart {
   id: number;
-  utilisateur: number;
-  statut: CartStatus;
-  montant_total: string;       // ex: "450.00"
-  date_creation: string;
-  date_expiration: string | null;
+  statut: string;
+  montant_total?: number | string;
   lignes: CartLine[];
 }

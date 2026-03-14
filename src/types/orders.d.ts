@@ -1,45 +1,30 @@
-export type PaymentStatus = "ATTENTE" | "PAYE" | "ECHOUE" | "REMBOURSE";
+export type OrderStatus = "EN_ATTENTE" | "PAYEE" | "ANNULEE" | string;
+
+export interface OrderLine {
+  id: number;
+  offre: number;
+  offre_nom: string;
+  quantite: number;
+  prix_unitaire: number | string;
+  sous_total: number | string;
+}
 
 export interface Order {
   id: number;
-  utilisateur: number;
-  panier: number;
   numero_commande: string;
-  date_commande: string;            // ISO datetime
-  montant_total: string;            // ex: "500.00"
-  statut_paiement: PaymentStatus;
-  methode_paiement: string | null;
+
+  utilisateur: number;
+  utilisateur_nom: string;
+
+  statut: OrderStatus;
+  total: number | string;
+
+  date_creation: string;
+  date_paiement: string | null;
+
   reference_paiement: string | null;
-  date_paiement: string | null;     // ISO datetime
-}
 
-export interface PayOrderPayload {
-  methode_paiement?: string;
-  reference_paiement?: string;
-}
-
-export interface CreateOrderPayload {
-  panier: number;
-}
-
-export interface OrderWithCart extends Order {
-  panier_detail?: {
-    id: number;
-    statut: "ACTIF" | "VALIDE" | "ABANDONNE" | "EXPIRE";
-    montant_total: string;
-    lignes: Array<{
-      id: number;
-      offre: number;
-      offre_nom?: string;
-      offre_prix?: string;
-      quantite: number;
-      prix_unitaire: string;
-      sous_total: string;
-      date_ajout: string;
-    }>;
-    date_creation: string;
-    date_expiration: string | null;
-  };
+  lignes: OrderLine[];
 }
 
 export interface Paginated<T> {
@@ -47,4 +32,25 @@ export interface Paginated<T> {
   next: string | null;
   previous: string | null;
   results: T[];
+}
+
+export interface OrderListParams {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  ordering?: string;
+  statut?: OrderStatus | "";
+}
+
+export interface CreateOrderItem {
+  offre: number;
+  quantite: number;
+}
+
+export interface CreateOrderPayload {
+  items: CreateOrderItem[];
+}
+
+export interface PayOrderPayload {
+  reference_paiement?: string;
 }

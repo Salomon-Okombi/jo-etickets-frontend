@@ -1,107 +1,118 @@
-import React, { useEffect, useState } from "react";
-import { listTickets, downloadTicketPng, type Ticket } from "@/api/tickets.api";
-import { formatDateTime } from "@/utils/format";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import useToast from "@/hooks/useToast";
+import type { Order } from "@/types/orders";
+import { listOrders, unwrapOrders } from "@/api/orders.api";
 
-export default function TicketsListPage() {
-  const { showToast } = useToast(); // selon ton hook
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
+}
+
+function fmtMoney(v: number | string) {
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
+
+function fmtDate(v?: string | null) {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("fr-FR");
+}
+
+export default function OrdersListPage() {
+  const [rows, setRows] = useState<Order[]>([]);
+  const [count, setCount] = useState(0);
+
   const [loading, setLoading] = useState(true);
-  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await listTickets();
-      setTickets(res.results ?? []); 
-    } catch {
-      showToast("Impossible de charger les billets.", "error");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(count / pageSize)), [count, pageSize]);
 
   useEffect(() => {
-    load();
-  }, []);
+    const controller = new AbortController();
 
-  async function handleDownload(id: number, filename: string) {
-    try {
-      setDownloadingId(id);
-      const blob = await downloadTicketPng(id);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename.endsWith(".png") ? filename : `${filename}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      showToast("Téléchargement impossible.", "error");
-    } finally {
-      setDownloadingId(null);
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const data = await listOrders({ page, page_size: pageSize } as any);
+        if (controller.signal.aborted) return;
+
+        const u = unwrapOrders(data);
+        setRows(u.rows);
+        setCount(u.count);
+      } catch (e: any) {
+        if (isCanceledError(e) || controller.signal.aborted) return;
+        setError("Impossible de charger vos commandes.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     }
-  }
 
-  if (loading) {
-    return (
-      <div className="p-6 flex justify-center">
-        <span className="loading loading-spinner loading-lg" />
-      </div>
-    );
-  }
+    load();
+    return () => controller.abort();
+  }, [page, pageSize]);
 
-  if (tickets.length === 0) {
-    return (
-      <div className="p-6">
-        <div className="alert">
-          <span>Aucun billet pour le moment.</span>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
+  if (error) return <div style={{ padding: "2rem" }}>{error}</div>;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold">Mes billets</h1>
-        <button className="btn btn-outline" onClick={load}>
-          Actualiser
-        </button>
-      </div>
+    <div style={{ padding: "1.5rem" }}>
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, marginBottom: "1rem" }}>Mes commandes</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {tickets.map((t) => (
-          <div key={t.id} className="card bg-base-100 shadow">
-            <div className="card-body">
-              <h2 className="card-title">Billet #{t.numero_billet}</h2>
-              <p className="text-sm opacity-70">
-                Offre #{t.offre} — {t.statut}
-              </p>
-              <p className="text-xs opacity-60">
-                Acheté le {formatDateTime(t.date_creation ?? "")}
-              </p>
+      {rows.length === 0 ? (
+        <div>Aucune commande pour le moment.</div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gap: "0.8rem" }}>
+            {rows.map((o) => (
+              <div
+                key={o.id}
+                style={{
+                  border: "1px solid rgba(15,23,42,0.12)",
+                  borderRadius: 14,
+                  padding: "1rem",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: 800 }}>{o.numero_commande}</div>
+                    <div style={{ opacity: 0.75, marginTop: 4 }}>
+                      Statut: <strong>{o.statut}</strong> — Total: <strong>{fmtMoney(o.total)}</strong>
+                    </div>
+                    <div style={{ opacity: 0.7, marginTop: 4 }}>
+                      Créée: {fmtDate(o.date_creation)} — Payée: {fmtDate(o.date_paiement)}
+                    </div>
+                  </div>
 
-              <div className="flex gap-2 justify-end mt-2">
-                <Link className="btn btn-sm" to={`/tickets/${t.id}`}>
-                  Détails
-                </Link>
-                <button
-                  className="btn btn-sm btn-outline"
-                  onClick={() => handleDownload(t.id, t.numero_billet)}
-                  disabled={downloadingId === t.id}
-                >
-                  {downloadingId === t.id ? (
-                    <span className="loading loading-spinner loading-xs" />
-                  ) : (
-                    "Télécharger"
-                  )}
-                </button>
+                  <Link to={`/mon-espace/commandes/${o.id}`} style={{ textDecoration: "none" }}>
+                    Voir
+                  </Link>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", alignItems: "center" }}>
+            <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>←</button>
+            <div style={{ opacity: 0.8 }}>
+              Page {page} / {totalPages}
+            </div>
+            <button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>→</button>
+
+            <select value={pageSize} onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)); }}>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+        </>
+      )}
     </div>
   );
 }
