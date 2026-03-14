@@ -1,147 +1,117 @@
-//bouton Télécharger QR/PNG
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { getOrder, payOrder, type Order } from "@/api/orders.api";
-import { formatCurrency } from "@/utils/format";
-import  useToast  from "@/hooks/useToast";
+import { useNavigate, useParams } from "react-router-dom";
+import type { EBillet } from "@/types/billets";
+import { getBillet, downloadBilletPdf } from "@/api/billets.api";
 
-export default function OrderDetailPage() {
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const orderId = Number(id);
-  const { toast } = useToast();
+  const billetId = Number(id);
   const navigate = useNavigate();
 
-  const [order, setOrder] = useState<Order | null>(null);
+  const [billet, setBillet] = useState<EBillet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
-
-  async function load() {
-    if (!orderId) return;
-    setLoading(true);
-    try {
-      const data = await getOrder(orderId);
-      setOrder(data);
-    } catch {
-      toast.error("Impossible de charger la commande.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+    const controller = new AbortController();
 
-  async function handlePay() {
-    if (!order) return;
-    setPaying(true);
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getBillet(billetId);
+        if (controller.signal.aborted) return;
+        setBillet(data);
+      } catch (e: any) {
+        if (isCanceledError(e) || controller.signal.aborted) return;
+        setError("Impossible de charger le billet.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    if (Number.isFinite(billetId) && billetId > 0) load();
+    return () => controller.abort();
+  }, [billetId]);
+
+  async function onDownloadPdf() {
+    if (!billet) return;
+
+    setDownloading(true);
+    setError(null);
+
     try {
-      await payOrder(order.id, {
-        methode_paiement: "MockPaiement",
-        reference_paiement: `WEB-${Date.now()}`,
-      });
-      toast.success("Paiement validé, billets générés.");
-      await load();
+      const blob = await downloadBilletPdf(billet.id);
+      triggerDownload(blob, `${billet.numero_billet}.pdf`);
     } catch {
-      toast.error("Le paiement a échoué.");
+      setError("Téléchargement du PDF impossible.");
     } finally {
-      setPaying(false);
+      setDownloading(false);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="p-6 flex justify-center">
-        <span className="loading loading-spinner loading-lg" />
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="p-6">
-        <div className="alert">
-          <span>Commande introuvable.</span>
-        </div>
-      </div>
-    );
-  }
-
-  const isPaid = order.statut_paiement === "PAYE";
-  const lines = order.panier_detail?.lignes ?? [];
+  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
+  if (!billet) return <div style={{ padding: "2rem" }}>{error ?? "Billet introuvable."}</div>;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold">
-          Commande #{order.numero_commande}
-        </h1>
-        <div className="flex gap-2">
-          <button className="btn btn-outline" onClick={load}>
-            Actualiser
+    <div style={{ padding: "1.5rem" }}>
+      <button onClick={() => navigate(-1)} style={{ marginBottom: "1rem" }}>
+        ← Retour
+      </button>
+
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 800 }}>{billet.numero_billet}</h1>
+      <div style={{ marginTop: 6, opacity: 0.85 }}>{billet.offre_nom}</div>
+
+      {error && (
+        <div style={{ marginTop: "1rem", padding: "0.75rem 1rem", border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.08)", borderRadius: 12 }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ marginTop: "1rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "1rem" }}>
+        <div>
+          <div style={{ opacity: 0.7 }}>Statut</div>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>{billet.statut}</div>
+
+          <div style={{ opacity: 0.7 }}>Acheté le</div>
+          <div style={{ marginBottom: 10 }}>{new Date(billet.date_achat).toLocaleString("fr-FR")}</div>
+
+          <div style={{ opacity: 0.7 }}>Utilisé le</div>
+          <div style={{ marginBottom: 10 }}>
+            {billet.date_utilisation ? new Date(billet.date_utilisation).toLocaleString("fr-FR") : "—"}
+          </div>
+
+          <button onClick={onDownloadPdf} disabled={downloading} style={{ marginTop: 8 }}>
+            {downloading ? "Téléchargement…" : "Télécharger le PDF"}
           </button>
-          <Link className="btn" to="/orders">
-            Mes commandes
-          </Link>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 card bg-base-100 shadow">
-          <div className="card-body p-0">
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Offre</th>
-                    <th>PU</th>
-                    <th>Qté</th>
-                    <th>Sous-total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((l) => (
-                    <tr key={l.id}>
-                      <td>{l.offre_nom ?? `Offre #${l.offre}`}</td>
-                      <td>{formatCurrency(Number(l.prix_unitaire ?? 0))}</td>
-                      <td>{l.quantite}</td>
-                      <td>{formatCurrency(Number(l.sous_total ?? 0))}</td>
-                    </tr>
-                  ))}
-                  <tr>
-                    <td colSpan={3} className="text-right font-semibold">Total</td>
-                    <td className="font-semibold">{formatCurrency(Number(order.montant_total ?? 0))}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
-        <div className="card bg-base-100 shadow">
-          <div className="card-body space-y-3">
-            <h2 className="card-title">Statut & Paiement</h2>
-            <div className="stats shadow w-full">
-              <div className="stat">
-                <div className="stat-title">Statut paiement</div>
-                <div className={`stat-value ${isPaid ? "text-success" : "text-warning"}`}>
-                  {order.statut_paiement}
-                </div>
-                <div className="stat-desc">{order.methode_paiement ?? "—"}</div>
-              </div>
-            </div>
-
-            {!isPaid ? (
-              <button className="btn btn-primary w-full" onClick={handlePay} disabled={paying}>
-                {paying ? <span className="loading loading-spinner loading-xs" /> : "Payer maintenant"}
-              </button>
-            ) : (
-              <button className="btn w-full" onClick={() => navigate("/tickets")}>
-                Voir mes billets
-              </button>
-            )}
-          </div>
+        <div>
+          {billet.qr_code ? (
+            <img
+              src={`data:image/png;base64,${billet.qr_code}`}
+              alt="QR code billet"
+              style={{ width: "100%", borderRadius: 14, border: "1px solid rgba(15,23,42,0.12)" }}
+            />
+          ) : (
+            <div style={{ opacity: 0.7 }}>QR indisponible</div>
+          )}
         </div>
       </div>
     </div>

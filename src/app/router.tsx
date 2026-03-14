@@ -30,7 +30,11 @@ import TicketsListPage from "@/pages/Client/TicketsListPage";
 import TicketDetailPage from "@/pages/Client/TicketDetailPage";
 
 // Pages – Admin
+import BilletAdminDetailPage from "@/pages/Admin/Billets/BilletAdminDetailPage";
 import DashboardPage from "@/pages/Admin/DashboardPage";
+import BilletAdminCreatePage from "@/pages/Admin/Billets/BilletAdminCreatePage";
+import BilletAdminEditPage from "@/pages/Admin/Billets/BilletAdminEditPage";
+
 
 import EventsAdminListPage from "@/pages/Admin/Events/EventsAdminList";
 import EventAdminCreatePage from "@/pages/Admin/Events/EventAdminCreate";
@@ -121,6 +125,10 @@ export const router = createBrowserRouter([
           // Alias pratique : /admin/tickets -> /admin/billets
           { path: "tickets", element: <Navigate to="/admin/billets" replace /> },
 
+
+          { path: "billets/nouveau", element: <BilletAdminCreatePage /> },
+          { path: "billets/:id", element: <BilletAdminEditPage /> },
+
           // Events (Admin)
           { path: "evenements", element: <EventsAdminListPage /> },
           { path: "evenements/nouveau", element: <EventAdminCreatePage /> },
@@ -138,6 +146,9 @@ export const router = createBrowserRouter([
           { path: "utilisateurs", element: <UsersAdminListPage /> },
           { path: "utilisateurs/nouveau", element: <UserAdminCreatePage /> },
           { path: "utilisateurs/:id", element: <UserAdminDetailPage /> },
+
+          { path: "billets", element: <BilletsAdminListPage /> },
+          { path: "billets/:id", element: <BilletAdminDetailPage /> },
         ],
       },
 
