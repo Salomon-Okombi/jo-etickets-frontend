@@ -14,7 +14,6 @@ type LocationState =
   | undefined;
 
 function resolveFromPath(state: LocationState): string | null {
-  // Je récupère "from" quel que soit son format (string ou objet location).
   if (!state || !state.from) return null;
   if (typeof state.from === "string") return state.from;
   if (typeof state.from === "object" && state.from.pathname) return state.from.pathname;
@@ -22,23 +21,19 @@ function resolveFromPath(state: LocationState): string | null {
 }
 
 function isAdminProfile(profile: any): boolean {
-  // Je considère admin si type_compte=ADMIN ou si les flags Django admin sont actifs.
-  return (
-    profile?.type_compte === "ADMIN" ||
-    profile?.is_staff === true ||
-    profile?.is_superuser === true
-  );
+  return profile?.type_compte === "ADMIN" || profile?.is_staff === true || profile?.is_superuser === true;
 }
 
 function pickPostLoginTarget(profile: any, fromPath: string | null): string {
-  // Je verrouille la règle :
-  // - admin -> /admin (je respecte from uniquement si from commence par /admin)
-  // - client -> from (si présent) sinon /mon-espace/commandes
   const admin = isAdminProfile(profile);
 
   if (admin) {
     return fromPath?.startsWith("/admin") ? fromPath : "/admin";
   }
+
+  // Si l'utilisateur venait du tunnel paiement, on retourne sur la porte /checkout
+  // (elle synchronise le panier et redirige vers /mon-espace/checkout)
+  if (fromPath === "/checkout") return "/checkout";
 
   return fromPath ?? "/mon-espace/commandes";
 }
@@ -55,16 +50,12 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fromPath = useMemo(
-    () => resolveFromPath(location.state as LocationState),
-    [location.state]
-  );
+  const fromPath = useMemo(() => resolveFromPath(location.state as LocationState), [location.state]);
 
   useEffect(() => {
-    // Si déjà connecté et ouverture manuelle de /login, je redirige selon le profil en mémoire.
+    // Si déjà connecté et ouverture manuelle de /login, je redirige proprement une seule fois.
     if (!isAuthenticated || !user) return;
 
-    // Je normalise aussi ici au cas où le profil en mémoire contient 0/1.
     const normalized = normalizeUser(user as any);
     const target = pickPostLoginTarget(normalized, fromPath);
     navigate(target, { replace: true });
@@ -82,29 +73,19 @@ const LoginPage: React.FC = () => {
     try {
       setLoading(true);
 
-      // 1) Je récupère le couple access/refresh
+      // 1) Tokens JWT
       const tokens: JwtPair = await loginUser(username.trim(), password);
-
-      // 2) Je stocke les tokens (axiosClient.ts les relit via auth_tokens et injecte Authorization)
       storeTokens(tokens);
 
-      // 3) Je récupère le profil via /utilisateurs/me/
+      // 2) Profil
       const rawProfile = await getProfile();
-
-      // 4) Je normalise le profil pour convertir 0/1 en true/false (cas classique avec Django)
       const profile = normalizeUser(rawProfile as any);
 
-      // 5) Je garde un log utile pendant la mise au point (à retirer quand tout est stable)
-      console.log("LOGIN: profile normalisé =", profile);
-      console.log("LOGIN: fromPath =", fromPath);
-
-      // 6) Je stocke le profil dans le contexte global
+      // 3) Contexte auth
       setUser(profile as any);
 
-      // 7) Je décide la destination uniquement à partir du profil normalisé
+      // 4) Redirection tunnel
       const target = pickPostLoginTarget(profile, fromPath);
-      console.log("LOGIN: cible =", target);
-
       navigate(target, { replace: true });
     } catch (err) {
       console.error("LOGIN: erreur =", err);
@@ -131,9 +112,7 @@ const LoginPage: React.FC = () => {
             <span>JO Paris 2024</span>
           </h1>
 
-          <p className="auth-page__text">
-            Accès aux paniers, commandes et e-billets sécurisés.
-          </p>
+          <p className="auth-page__text">Accès aux paniers, commandes et e-billets sécurisés.</p>
         </section>
 
         <section className="auth-page__panel">

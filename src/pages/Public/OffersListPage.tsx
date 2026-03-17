@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listOffers } from "@/api/offers.api";
 import type { Offer } from "@/types/offers";
-import { api } from "@/api/axiosClient";
-import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/features/cart/useCart";
 
 type FilterType = "ALL" | "SOLO" | "DUO" | "FAMILLE";
 
@@ -14,8 +13,8 @@ const OffersListPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<FilterType>("ALL");
 
-  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { addItem } = useCart();
 
   useEffect(() => {
     let mounted = true;
@@ -51,15 +50,11 @@ const OffersListPage: React.FC = () => {
     if (type.includes("SOLO")) return "SOLO";
     if (type.includes("DUO")) return "DUO";
     if (type.includes("FAMIL")) return "FAMILLE";
-
     return "ALL";
   };
 
   const filteredOffers = useMemo(
-    () =>
-      offers.filter((offer) =>
-        filterType === "ALL" ? true : getOfferKind(offer) === filterType
-      ),
+    () => offers.filter((offer) => (filterType === "ALL" ? true : getOfferKind(offer) === filterType)),
     [offers, filterType]
   );
 
@@ -83,23 +78,17 @@ const OffersListPage: React.FC = () => {
     if (statut !== "ACTIVE") {
       if (statut === "EPUISEE") return { ok: false, label: "Épuisée" };
       if (statut === "EXPIREE") return { ok: false, label: "Expirée" };
-      if (statut === "INACTIVE") return { ok: false, label: "Indisponible" };
       return { ok: false, label: "Indisponible" };
     }
 
     if (stock <= 0) return { ok: false, label: "Stock épuisé" };
 
     const now = new Date();
-    const startRaw = offer.date_debut_vente;
-    const endRaw = offer.date_fin_vente;
-
-    const start = startRaw ? new Date(startRaw) : null;
-    const end = endRaw ? new Date(endRaw) : null;
+    const start = offer.date_debut_vente ? new Date(offer.date_debut_vente) : null;
+    const end = offer.date_fin_vente ? new Date(offer.date_fin_vente) : null;
 
     if (start && !Number.isNaN(start.getTime()) && now < start) return { ok: false, label: "Bientôt" };
     if (end && !Number.isNaN(end.getTime()) && now > end) return { ok: false, label: "Expirée" };
-    if (start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end < start)
-      return { ok: false, label: "Expirée" };
 
     return { ok: true, label: "Disponible" };
   };
@@ -108,18 +97,19 @@ const OffersListPage: React.FC = () => {
     const av = getAvailability(offer);
     if (!av.ok) return;
 
-    if (!isAuthenticated) {
-      navigate("/login", { state: { from: "/offres", selectedOfferId: offer.id } });
-      return;
-    }
-
     try {
       setLoadingAddId(offer.id);
       setError(null);
 
-      await api.post("/paniers/add/", { offre: offer.id, quantite: 1 });
+      addItem({
+        offre: offer.id,
+        quantite: 1,
+        nom_offre: offer.nom_offre,
+        prix: offer.prix,
+        nb_personnes: offer.nb_personnes ?? undefined,
+      });
 
-      alert("Offre ajoutée à votre panier.");
+      navigate("/panier");
     } catch (err) {
       console.error(err);
       setError("Impossible d’ajouter l’offre au panier.");
@@ -134,24 +124,8 @@ const OffersListPage: React.FC = () => {
         <div className="offers-page__hero-inner">
           <h1 className="offers-page__title">Offres disponibles</h1>
           <p className="offers-page__subtitle">
-            Choisissez une offre Solo, Duo ou Famille pour assister aux épreuves des Jeux Olympiques Paris 2024.
-            Chaque offre correspond à un nombre de personnes et à un tarif adapté.
+            Choisissez une offre Solo, Duo ou Famille. Ajoutez au panier en visiteur puis connectez-vous au moment de payer.
           </p>
-
-          <div className="offers-page__summary-grid">
-            <div className="offers-page__summary-card">
-              <h2>Offre Solo</h2>
-              <p>1 personne – idéale pour vivre une épreuve en solo.</p>
-            </div>
-            <div className="offers-page__summary-card">
-              <h2>Offre Duo</h2>
-              <p>2 personnes – partagez l’émotion des Jeux à deux.</p>
-            </div>
-            <div className="offers-page__summary-card">
-              <h2>Offre Famille</h2>
-              <p>4 personnes – une expérience olympique en famille.</p>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -160,53 +134,24 @@ const OffersListPage: React.FC = () => {
           <div className="offers-page__filters">
             <span className="offers-page__filters-label">Type d&apos;offre :</span>
             <div className="offers-page__filters-buttons">
-              <button
-                type="button"
-                className={`offers-page__filter-btn ${filterType === "ALL" ? "offers-page__filter-btn--active" : ""}`}
-                onClick={() => setFilterType("ALL")}
-              >
-                Toutes
-              </button>
-              <button
-                type="button"
-                className={`offers-page__filter-btn ${filterType === "SOLO" ? "offers-page__filter-btn--active" : ""}`}
-                onClick={() => setFilterType("SOLO")}
-              >
-                Solo
-              </button>
-              <button
-                type="button"
-                className={`offers-page__filter-btn ${filterType === "DUO" ? "offers-page__filter-btn--active" : ""}`}
-                onClick={() => setFilterType("DUO")}
-              >
-                Duo
-              </button>
-              <button
-                type="button"
-                className={`offers-page__filter-btn ${filterType === "FAMILLE" ? "offers-page__filter-btn--active" : ""}`}
-                onClick={() => setFilterType("FAMILLE")}
-              >
-                Famille
-              </button>
+              {(["ALL", "SOLO", "DUO", "FAMILLE"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`offers-page__filter-btn ${filterType === t ? "offers-page__filter-btn--active" : ""}`}
+                  onClick={() => setFilterType(t)}
+                >
+                  {t === "ALL" ? "Toutes" : t === "FAMILLE" ? "Famille" : t === "SOLO" ? "Solo" : "Duo"}
+                </button>
+              ))}
             </div>
           </div>
 
-          {loading && (
-            <div className="offers-page__state">
-              <p>Chargement des offres en cours…</p>
-            </div>
-          )}
-
-          {error && !loading && (
-            <div className="offers-page__state offers-page__state--error">
-              <p>{error}</p>
-            </div>
-          )}
+          {loading && <div className="offers-page__state"><p>Chargement…</p></div>}
+          {error && !loading && <div className="offers-page__state offers-page__state--error"><p>{error}</p></div>}
 
           {!loading && !error && filteredOffers.length === 0 && (
-            <div className="offers-page__state">
-              <p>Aucune offre disponible pour le moment.</p>
-            </div>
+            <div className="offers-page__state"><p>Aucune offre disponible.</p></div>
           )}
 
           {!loading && !error && filteredOffers.length > 0 && (
@@ -220,13 +165,13 @@ const OffersListPage: React.FC = () => {
                   <article key={offer.id} className="offer-card">
                     <header className="offer-card__header">
                       <span className={`offer-card__badge offer-card__badge--${kind.toLowerCase()}`}>
-                        {kind === "SOLO" ? "Solo" : kind === "DUO" ? "Duo" : kind === "FAMILLE" ? "Famille" : offer.type_offre}
+                        {kind === "ALL" ? offer.type_offre : kind === "FAMILLE" ? "Famille" : kind === "SOLO" ? "Solo" : "Duo"}
                       </span>
                       <h2 className="offer-card__title">{offer.nom_offre}</h2>
                     </header>
 
                     <p className="offer-card__description">
-                      {offer.description || "Offre spéciale pour assister à une ou plusieurs épreuves des Jeux Olympiques."}
+                      {offer.description || "Offre pour assister à une épreuve des JO."}
                     </p>
 
                     <dl className="offer-card__details">
@@ -239,7 +184,7 @@ const OffersListPage: React.FC = () => {
                         <dd>{formatPrice(offer.prix)}</dd>
                       </div>
                       <div className="offer-card__detail-row">
-                        <dt>Stock disponible</dt>
+                        <dt>Stock</dt>
                         <dd>{offer.stock_disponible > 0 ? `${offer.stock_disponible} places` : "Complet"}</dd>
                       </div>
                       <div className="offer-card__detail-row">
@@ -255,7 +200,7 @@ const OffersListPage: React.FC = () => {
                         disabled={!av.ok || isAdding}
                         onClick={() => handleAddToCart(offer)}
                       >
-                        {isAdding ? "Ajout en cours..." : av.ok ? "Ajouter au panier" : "Indisponible"}
+                        {isAdding ? "Ajout…" : av.ok ? "Ajouter au panier" : "Indisponible"}
                       </button>
                     </div>
                   </article>

@@ -30,6 +30,8 @@ import TicketsListPage from "@/pages/Client/TicketsListPage";
 import TicketDetailPage from "@/pages/Client/TicketDetailPage";
 
 
+
+
 // Pages – Admin
 import BilletAdminDetailPage from "@/pages/Admin/Billets/BilletAdminDetailPage";
 import DashboardPage from "@/pages/Admin/DashboardPage";
@@ -52,9 +54,12 @@ import UsersAdminListPage from "@/pages/Admin/Users/UsersAdminList";
 import UserAdminDetailPage from "@/pages/Admin/Users/UserAdminDetail";
 import UserAdminCreatePage from "@/pages/Admin/Users/UserAdminCreate";
 // NOUVEAUX : Admin Billets + Admin Commandes
-// Assure-toi que ces fichiers existent bien aux emplacements indiqués
 import BilletsAdminListPage from "@/pages/Admin/Billets/BilletsAdminListPage";
 import OrdersAdminListPage from "@/pages/Admin/Orders/OrdersAdminListPage";
+
+
+import PublicCartPage from "@/pages/Public/CartPage";
+import CheckoutGatePage from "@/pages/Public/CheckoutGatePage";
 
 // 404
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -77,6 +82,9 @@ export const router = createBrowserRouter([
 
           { path: "login", element: <LoginPage /> },
           { path: "register", element: <RegisterPage /> },
+
+          { path: "panier", element: <PublicCartPage /> },
+          { path: "checkout", element: <CheckoutGatePage /> },
         ],
       },
 
@@ -102,6 +110,8 @@ export const router = createBrowserRouter([
 
           { path: "billets", element: <TicketsListPage /> },
           { path: "billets/:id", element: <TicketDetailPage /> },
+
+        
 
         ],
       },
