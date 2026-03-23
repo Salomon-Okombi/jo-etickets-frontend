@@ -213,7 +213,7 @@ export default function DashboardPage() {
   async function copyText(text: string, label = "Copié") {
     try {
       await navigator.clipboard.writeText(text);
-      showToast(`${label} ✅`, "success");
+      showToast(`${label} `, "success");
     } catch {
       showToast("Impossible de copier (permissions navigateur).", "error");
     }
