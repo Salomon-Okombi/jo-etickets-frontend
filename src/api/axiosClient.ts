@@ -6,9 +6,18 @@ import axios, {
 
 /**
  * ===========================================================
- * AXIOS CLIENT — JWT + Refresh automatique
+ * AXIOS CLIENT — JWT + Refresh automatique (PRODUCTION READY)
+ * ===========================================================
+ * - Ajoute automatiquement le token JWT
+ * - Rafraîchit le token expiré (401)
+ * - Évite les doubles refresh (queue)
+ * - Compatible Vite + Django SimpleJWT
  * ===========================================================
  */
+
+/* ------------------------------------------------------------------
+   Configuration
+------------------------------------------------------------------ */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -60,16 +69,16 @@ function clearStoredTokens() {
 }
 
 /* ------------------------------------------------------------------
-   Axios instance
+   Instance Axios principale
 ------------------------------------------------------------------ */
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
+  timeout: 20000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  timeout: 20000,
 });
 
 /* ------------------------------------------------------------------
@@ -87,7 +96,7 @@ function notifyQueue(newAccess: string) {
 async function refreshAccessToken(): Promise<string> {
   const tokens = getStoredTokens();
   if (!tokens?.refresh) {
-    throw new Error("No refresh token");
+    throw new Error("No refresh token available");
   }
 
   const response = await axios.post<{ access: string }>(
@@ -95,17 +104,17 @@ async function refreshAccessToken(): Promise<string> {
     { refresh: tokens.refresh }
   );
 
-  const updated: JwtPair = {
+  const updatedTokens: JwtPair = {
     access: response.data.access,
     refresh: tokens.refresh,
   };
 
-  setStoredTokens(updated);
+  setStoredTokens(updatedTokens);
   return response.data.access;
 }
 
 /* ------------------------------------------------------------------
-   Request interceptor
+   Interceptor REQUEST (JWT)
 ------------------------------------------------------------------ */
 
 api.interceptors.request.use(
@@ -119,44 +128,51 @@ api.interceptors.request.use(
 );
 
 /* ------------------------------------------------------------------
-   Response interceptor (401 → refresh)
+   Interceptor RESPONSE (401 → refresh)
 ------------------------------------------------------------------ */
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const original = error.config as
+    const originalRequest = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
       | undefined;
 
-    if (!original || error.response?.status !== 401 || original._retry) {
+    if (
+      !originalRequest ||
+      error.response?.status !== 401 ||
+      originalRequest._retry
+    ) {
       return Promise.reject(error);
     }
 
-    original._retry = true;
+    originalRequest._retry = true;
 
     try {
-      let newAccess: string;
+      let newAccessToken: string;
 
       if (!isRefreshing) {
         isRefreshing = true;
-        newAccess = await refreshAccessToken();
+        newAccessToken = await refreshAccessToken();
         isRefreshing = false;
-        notifyQueue(newAccess);
+        notifyQueue(newAccessToken);
       } else {
-        newAccess = await new Promise<string>((resolve, reject) => {
+        newAccessToken = await new Promise<string>((resolve, reject) => {
           refreshQueue.push(resolve);
-          setTimeout(() => reject(new Error("Refresh timeout")), 10000);
+          setTimeout(
+            () => reject(new Error("JWT refresh timeout")),
+            10000
+          );
         });
       }
 
-      original.headers.Authorization = `Bearer ${newAccess}`;
-      return api(original);
-    } catch (e) {
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      return api(originalRequest);
+    } catch (refreshError) {
       isRefreshing = false;
       refreshQueue = [];
       clearStoredTokens();
-      return Promise.reject(e);
+      return Promise.reject(refreshError);
     }
   }
 );
