@@ -1,5 +1,5 @@
 // src/api/billets.api.ts
-import { api } from "./axiosClient";
+import api  from "./axiosClient";
 import type { EBillet, Paginated, EBilletCreatePayload, EBilletUpdatePayload } from "@/types/billets";
 
 export async function listBillets(params?: {

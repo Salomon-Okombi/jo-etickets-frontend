@@ -1,13 +1,15 @@
-// src/hooks/orders/useOrders.ts
 import { useEffect, useState } from "react";
 import {
   listOrders,
   getOrder,
   payOrder,
-  generateTickets,
-  type Order,
-  type Paginated,
 } from "@/api/orders.api";
+
+import type { Order, Paginated } from "@/types/orders";
+
+/* ============================================================
+   Types
+============================================================ */
 
 type ListParams = {
   page?: number;
@@ -15,14 +17,19 @@ type ListParams = {
   ordering?: string;
 };
 
+/* ============================================================
+   📦 LISTE DES COMMANDES
+============================================================ */
+
 export function useOrders(initial?: ListParams) {
   const [params, setParams] = useState<ListParams>({
     page: initial?.page ?? 1,
     search: initial?.search ?? "",
     ordering: initial?.ordering ?? "",
   });
+
   const [data, setData] = useState<Paginated<Order> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<unknown>(null);
 
   async function fetchList(p: ListParams = params) {
@@ -33,7 +40,7 @@ export function useOrders(initial?: ListParams) {
         page: p.page,
         search: p.search,
         ordering: p.ordering,
-      } as any);
+      });
       setData(resp);
     } catch (e) {
       setError(e);
@@ -44,12 +51,14 @@ export function useOrders(initial?: ListParams) {
 
   useEffect(() => {
     fetchList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.page, params.search, params.ordering]);
 
-  const setPage = (page: number) => setParams((prev) => ({ ...prev, page }));
+  const setPage = (page: number) =>
+    setParams((prev) => ({ ...prev, page }));
+
   const setSearch = (search: string) =>
     setParams((prev) => ({ ...prev, page: 1, search }));
+
   const setOrdering = (ordering: string) =>
     setParams((prev) => ({ ...prev, page: 1, ordering }));
 
@@ -70,17 +79,18 @@ export function useOrders(initial?: ListParams) {
   };
 }
 
-/* ------------------------------------------------------------------
-   🔹 Détail + actions (payer / générer billets)
------------------------------------------------------------------- */
+/* ============================================================
+   🧾 DÉTAIL D’UNE COMMANDE
+============================================================ */
 
 export function useOrderDetail(id?: number) {
   const [item, setItem] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(Boolean(id));
+  const [loading, setLoading] = useState<boolean>(Boolean(id));
   const [error, setError] = useState<unknown>(null);
 
   async function fetchOne() {
     if (!id) return;
+
     setLoading(true);
     setError(null);
     try {
@@ -93,28 +103,13 @@ export function useOrderDetail(id?: number) {
     }
   }
 
-  async function markAsPaid(methode_paiement = "Carte bancaire") {
+  async function markAsPaid(reference_paiement: string = "CARTE") {
     if (!id) return;
-    setLoading(true);
-    try {
-      // 1) on appelle l’endpoint de paiement
-      const resp = await payOrder(id, { methode_paiement });
-      // 2) on recharge la commande pour mettre à jour `item`
-      await fetchOne();
-      return resp; // PayOrderResponse (message + billets)
-    } catch (e) {
-      setError(e);
-      throw e;
-    } finally {
-      setLoading(false);
-    }
-  }
 
-  async function generateEBillets() {
-    if (!id) return;
     setLoading(true);
     try {
-      const resp = await generateTickets(id);
+      const resp = await payOrder(id, { reference_paiement });
+      await fetchOne(); // 🔥 billets déjà générés côté backend
       return resp;
     } catch (e) {
       setError(e);
@@ -126,7 +121,6 @@ export function useOrderDetail(id?: number) {
 
   useEffect(() => {
     fetchOne();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   return {
@@ -135,6 +129,5 @@ export function useOrderDetail(id?: number) {
     error,
     reload: fetchOne,
     markAsPaid,
-    generateEBillets,
   };
 }

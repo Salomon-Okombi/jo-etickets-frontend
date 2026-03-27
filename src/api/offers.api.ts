@@ -7,6 +7,10 @@ import type {
   OfferUpdatePayload,
 } from "@/types/offers";
 
+/* ------------------------------
+   LIST / GET
+-------------------------------- */
+
 export async function listOffers(
   params?: OfferListParams
 ): Promise<Paginated<Offer>> {
@@ -18,6 +22,10 @@ export async function getOffer(id: number): Promise<Offer> {
   const { data } = await api.get<Offer>(`/offres/${id}/`);
   return data;
 }
+
+/* ------------------------------
+   CREATE / UPDATE / DELETE
+-------------------------------- */
 
 export async function createOffer(
   payload: OfferCreatePayload

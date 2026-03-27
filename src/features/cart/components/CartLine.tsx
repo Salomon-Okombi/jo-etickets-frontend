@@ -1,26 +1,18 @@
 import React, { useMemo, useState } from "react";
-import type { CartLine } from "@/api/carts.api";
+import type { CartLine as CartLineType } from "@/types/carts";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 type Props = {
-  /** Ligne telle que renvoyée par l’API */
-  line: CartLine;
-  /** ID du panier auquel appartient la ligne (utile pour les callbacks parents) */
+  line: CartLineType;
   panierId: number;
 
-  /** Appelé quand l’utilisateur clique sur +1 */
-  onIncrease?: (line: CartLine) => Promise<void> | void;
-  /** Appelé quand l’utilisateur clique sur -1 (si > 1) */
-  onDecrease?: (line: CartLine) => Promise<void> | void;
-  /** Appelé quand l’utilisateur confirme la suppression de la ligne */
-  onRemove?: (line: CartLine) => Promise<void> | void;
+  onIncrease?: (line: CartLineType) => Promise<void> | void;
+  onDecrease?: (line: CartLineType) => Promise<void> | void;
+  onRemove?: (line: CartLineType) => Promise<void> | void;
 
-  /** Désactive les actions (ex: pendant un appel réseau global) */
   disabled?: boolean;
-
-  /** Affiche un bouton compact (utile en liste dense) */
   dense?: boolean;
 };
 
@@ -37,11 +29,16 @@ export default function CartLine({
   const [working, setWorking] = useState<null | "inc" | "dec" | "del">(null);
 
   const canDecrease = useMemo(() => Number(line.quantite) > 1, [line.quantite]);
+
   const priceUnit = useMemo(
-    () => parseFloat(line.prix_unitaire ?? line.offre_prix ?? "0"),
-    [line.prix_unitaire, line.offre_prix]
+    () => Number(line.prix_unitaire ?? 0),
+    [line.prix_unitaire]
   );
-  const subTotal = useMemo(() => parseFloat(line.sous_total ?? "0"), [line.sous_total]);
+
+  const subTotal = useMemo(
+    () => Number(line.sous_total ?? priceUnit * line.quantite),
+    [line.sous_total, priceUnit, line.quantite]
+  );
 
   const handleIncrease = async () => {
     if (!onIncrease || disabled) return;
@@ -85,7 +82,7 @@ export default function CartLine({
       {/* Nom de l’offre */}
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">
-          {line.offre_nom ?? `Offre #${line.offre}`}
+          Offre #{line.offre}
         </div>
         <div className="text-sm text-base-content/70">
           Prix unitaire&nbsp;: {priceUnit.toFixed(2)} €
@@ -104,7 +101,7 @@ export default function CartLine({
           {working === "dec" ? <Spinner size="sm" /> : "−"}
         </Button>
 
-        <div className="px-3 py-1 rounded-md bg-base-200 text-base-content/90 min-w-10 text-center">
+        <div className="px-3 py-1 rounded-md bg-base-200 min-w-10 text-center">
           {line.quantite}
         </div>
 
@@ -137,11 +134,11 @@ export default function CartLine({
         </Button>
       </div>
 
-      {/* Confirmation de suppression */}
+      {/* Confirmation */}
       <ConfirmDialog
         open={confirmOpen}
         title="Supprimer l’article"
-        description={`Retirer « ${line.offre_nom ?? `Offre #${line.offre}`} » du panier ?`}
+        description={`Retirer l’offre #${line.offre} du panier ?`}
         confirmText="Supprimer"
         confirmTone="danger"
         cancelText="Annuler"

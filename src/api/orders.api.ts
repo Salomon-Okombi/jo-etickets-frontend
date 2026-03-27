@@ -1,61 +1,59 @@
-import api from "./axiosClient";
-import type {
-  Order,
-  Paginated,
-  OrderListParams,
-  CreateOrderPayload,
-  PayOrderPayload,
-} from "@/types/orders";
+import api from "@/api/axiosClient";
+import type { Order, Paginated } from "@/types/orders";
 
-/* ------------------------------
-   Helpers
--------------------------------- */
+/* ============================================================
+   LISTE / LECTURE
+============================================================ */
 
-function unwrapList<T>(data: any): { rows: T[]; count: number } {
-  if (Array.isArray(data)) return { rows: data, count: data.length };
-  if (data && Array.isArray(data.results)) {
-    return {
-      rows: data.results,
-      count: Number(data.count ?? data.results.length),
-    };
-  }
-  return { rows: [], count: 0 };
-}
-
-/* ------------------------------
-   API
--------------------------------- */
-
-export async function listOrders(
-  params?: OrderListParams
-): Promise<Paginated<Order>> {
-  const { data } = await api.get("/commandes/", { params });
+export async function listOrders(params?: {
+  page?: number;
+  search?: string;
+  ordering?: string;
+}) {
+  const { data } = await api.get<Paginated<Order>>("/commandes/", {
+    params,
+  });
   return data;
 }
 
-export async function getOrder(id: number): Promise<Order> {
+export async function getOrder(id: number) {
   const { data } = await api.get<Order>(`/commandes/${id}/`);
   return data;
 }
 
-export async function createOrder(
-  payload: CreateOrderPayload
-): Promise<Order> {
+/* ============================================================
+   CRÉATION COMMANDE
+============================================================ */
+
+export type CreateOrderItem = {
+  offre: number;
+  quantite: number;
+};
+
+export type CreateOrderPayload = {
+  items: CreateOrderItem[];
+};
+
+export async function createOrder(payload: CreateOrderPayload) {
   const { data } = await api.post<Order>("/commandes/", payload);
   return data;
 }
 
+/* ============================================================
+   PAIEMENT
+============================================================ */
+
+export type PayOrderPayload = {
+  reference_paiement: string;
+};
+
 export async function payOrder(
   id: number,
   payload: PayOrderPayload
-): Promise<Order> {
+) {
   const { data } = await api.post<Order>(
     `/commandes/${id}/payer/`,
     payload
   );
   return data;
-}
-
-export function unwrapOrders(data: any) {
-  return unwrapList<Order>(data);
 }

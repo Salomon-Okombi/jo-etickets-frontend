@@ -1,5 +1,5 @@
 // src/api/events.api.ts
-import { api } from "./axiosClient";
+import api  from "./axiosClient";
 
 /* ------------------------------------------------------------------
    🧱 Types

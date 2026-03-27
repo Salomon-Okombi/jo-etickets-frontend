@@ -1,105 +1,37 @@
-import { useEffect, useState } from "react";
-import {
-  listOffers,
-  getOffer,
-  type Offer,
-  type Paginated,
-} from "@/api/offers.api";
+import { useCallback, useEffect, useState } from "react";
+import { listOffers } from "@/api/offers.api";
+import type { Offer, Paginated, OfferListParams } from "@/types/offers";
 
-type ListParams = {
-  page?: number;
-  search?: string;
-  ordering?: string;
-  eventId?: number; // si tu filtres côté backend par événement (optionnel)
-};
-
-export function useOffers(initial?: ListParams) {
-  const [params, setParams] = useState<ListParams>({
-    page: initial?.page ?? 1,
-    search: initial?.search ?? "",
-    ordering: initial?.ordering ?? "",
-    eventId: initial?.eventId,
-  });
-  const [data, setData] = useState<Paginated<Offer> | null>(null);
+export function useOffers(params?: OfferListParams) {
+  const [rows, setRows] = useState<Offer[]>([]);
+  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function fetchList(p: ListParams = params) {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
     try {
-      const resp = await listOffers({
-        page: p.page,
-        search: p.search,
-        ordering: p.ordering,
-        eventId: p.eventId,
-      } as any); // adapter si ton endpoint accepte ces params
-      setData(resp);
+      setLoading(true);
+      setError(null);
+
+      const data: Paginated<Offer> = await listOffers(params);
+      setRows(data.results);
+      setCount(data.count);
     } catch (e) {
-      setError(e);
+      setError("Impossible de charger les offres.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [params]);
 
   useEffect(() => {
-    fetchList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.page, params.search, params.ordering, params.eventId]);
-
-  const setPage = (page: number) => setParams((prev) => ({ ...prev, page }));
-  const setSearch = (search: string) =>
-    setParams((prev) => ({ ...prev, page: 1, search }));
-  const setOrdering = (ordering: string) =>
-    setParams((prev) => ({ ...prev, page: 1, ordering }));
-  const setEventId = (eventId?: number) =>
-    setParams((prev) => ({ ...prev, page: 1, eventId }));
-
-  const hasNext = Boolean(data?.next);
-  const hasPrev = Boolean(data?.previous);
+    load();
+  }, [load]);
 
   return {
-    data,
-    items: data?.results ?? [],
-    page: params.page ?? 1,
-    search: params.search ?? "",
-    ordering: params.ordering ?? "",
-    eventId: params.eventId,
-    hasNext,
-    hasPrev,
-    setPage,
-    setSearch,
-    setOrdering,
-    setEventId,
-    reload: () => fetchList(),
+    offers: rows,
+    count,
     loading,
     error,
+    reload: load,
   };
-}
-
-export function useOfferDetail(id?: number) {
-  const [item, setItem] = useState<Offer | null>(null);
-  const [loading, setLoading] = useState(Boolean(id));
-  const [error, setError] = useState<unknown>(null);
-
-  async function fetchOne() {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await getOffer(id);
-      setItem(resp);
-    } catch (e) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchOne();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  return { item, loading, error, reload: fetchOne };
 }

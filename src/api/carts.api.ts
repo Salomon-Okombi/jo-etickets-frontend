@@ -33,6 +33,7 @@ function unwrapPaginated<T>(data: any): T[] {
    API
 -------------------------------- */
 
+/** Récupère le panier ACTIF */
 export async function getActiveCart(): Promise<Cart | null> {
   const { data } = await api.get("/paniers/");
   const carts = unwrapPaginated<any>(data);
@@ -45,10 +46,15 @@ export async function getActiveCart(): Promise<Cart | null> {
   return unwrapCart(actif);
 }
 
-export async function addToCart(offre: number, quantite = 1): Promise<void> {
+/** Ajoute une offre au panier */
+export async function addToCart(
+  offre: number,
+  quantite: number = 1
+): Promise<void> {
   await api.post("/paniers/add/", { offre, quantite });
 }
 
+/** Supprime une ligne du panier */
 export async function removeCartLine(
   panierId: number,
   ligneId: number
@@ -58,6 +64,12 @@ export async function removeCartLine(
   );
 }
 
+/** Supprime entièrement le panier */
+export async function deleteCart(panierId: number): Promise<void> {
+  await api.delete(`/paniers/${panierId}/`);
+}
+
+/** Diminue la quantité d’une ligne */
 export async function decreaseLine(
   panierId: number,
   line: CartLine
@@ -66,10 +78,12 @@ export async function decreaseLine(
     await removeCartLine(panierId, line.id);
     return;
   }
+
   await removeCartLine(panierId, line.id);
   await addToCart(line.offre, line.quantite - 1);
 }
 
+/** Augmente la quantité d’une ligne */
 export async function increaseLine(line: CartLine): Promise<void> {
   await addToCart(line.offre, 1);
 }

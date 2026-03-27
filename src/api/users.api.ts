@@ -1,4 +1,4 @@
-import { api } from "@/api/axiosClient";
+import  api  from "@/api/axiosClient";
 import type { Paginated, User, UserListParams, UserRegisterPayload, UserUpdatePayload } from "@/types/users";
 
 // si axiosClient.baseURL = http://localhost:8000/api

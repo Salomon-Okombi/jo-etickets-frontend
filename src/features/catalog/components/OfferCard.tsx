@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { Offer } from "@/api/offers.api";
+import type { Offer } from "@/types/offers";
 import  Button  from "@/components/ui/Button";
 import  Badge  from "@/components/ui/Badge";
 import  Input  from "@/components/ui/Input";

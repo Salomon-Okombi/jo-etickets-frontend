@@ -1,4 +1,4 @@
-import { api } from "./axiosClient";
+import  api  from "./axiosClient";
 import type { Offer } from "@/types/offers";
 
 export async function listPublicOffers(params?: { evenement?: number }) {

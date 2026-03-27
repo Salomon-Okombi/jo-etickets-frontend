@@ -1,5 +1,5 @@
 // src/api/dashboard.api.ts
-import { api } from "./axiosClient";
+import  api  from "./axiosClient";
 
 export type DashboardOverview = {
   nb_evenements: number;

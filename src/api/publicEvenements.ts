@@ -1,4 +1,4 @@
-import { api } from "@/utils/http";
+import  api  from "@/utils/http";
 import type { PublicEvenementDetail, PublicEvenementListItem } from "@/types/evenements";
 
 export async function fetchPublicEvenements(signal?: AbortSignal) {

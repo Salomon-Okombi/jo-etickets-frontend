@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Order } from "@/types/orders";
-import { listOrders, unwrapOrders } from "@/api/orders.api";
+import { listOrders } from "@/api/orders.api";
 
 function isCanceledError(err: any) {
   return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
@@ -24,13 +24,16 @@ export default function OrdersListPage() {
   const [rows, setRows] = useState<Order[]>([]);
   const [count, setCount] = useState(0);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(count / pageSize)), [count, pageSize]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(count / pageSize)),
+    [count, pageSize]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,12 +43,15 @@ export default function OrdersListPage() {
         setLoading(true);
         setError(null);
 
-        const data = await listOrders({ page, page_size: pageSize } as any);
+        const data = await listOrders({
+          page,
+          //page_size: pageSize,
+        });
+
         if (controller.signal.aborted) return;
 
-        const u = unwrapOrders(data);
-        setRows(u.rows);
-        setCount(u.count);
+        setRows(data.results);
+        setCount(data.count);
       } catch (e: any) {
         if (isCanceledError(e) || controller.signal.aborted) return;
         setError("Impossible de charger vos commandes.");
@@ -58,12 +64,19 @@ export default function OrdersListPage() {
     return () => controller.abort();
   }, [page, pageSize]);
 
-  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
-  if (error) return <div style={{ padding: "2rem" }}>{error}</div>;
+  if (loading) {
+    return <div style={{ padding: "2rem" }}>Chargement…</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: "2rem" }}>{error}</div>;
+  }
 
   return (
     <div style={{ padding: "1.5rem" }}>
-      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, marginBottom: "1rem" }}>Mes commandes</h1>
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, marginBottom: "1rem" }}>
+        Mes commandes
+      </h1>
 
       {rows.length === 0 ? (
         <div>Aucune commande pour le moment.</div>
@@ -79,18 +92,30 @@ export default function OrdersListPage() {
                   padding: "1rem",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "1rem",
+                    alignItems: "center",
+                  }}
+                >
                   <div>
                     <div style={{ fontWeight: 800 }}>{o.numero_commande}</div>
                     <div style={{ opacity: 0.75, marginTop: 4 }}>
-                      Statut: <strong>{o.statut}</strong> — Total: <strong>{fmtMoney(o.total)}</strong>
+                      Statut : <strong>{o.statut}</strong> — Total :{" "}
+                      <strong>{fmtMoney(o.total)}</strong>
                     </div>
                     <div style={{ opacity: 0.7, marginTop: 4 }}>
-                      Créée: {fmtDate(o.date_creation)} — Payée: {fmtDate(o.date_paiement)}
+                      Créée : {fmtDate(o.date_creation)} — Payée :{" "}
+                      {fmtDate(o.date_paiement)}
                     </div>
                   </div>
 
-                  <Link to={`/mon-espace/commandes/${o.id}`} style={{ textDecoration: "none" }}>
+                  <Link
+                    to={`/mon-espace/commandes/${o.id}`}
+                    style={{ textDecoration: "none" }}
+                  >
                     Voir
                   </Link>
                 </div>
@@ -98,14 +123,41 @@ export default function OrdersListPage() {
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", alignItems: "center" }}>
-            <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>←</button>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              marginTop: "1rem",
+              alignItems: "center",
+            }}
+          >
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              ←
+            </button>
+
             <div style={{ opacity: 0.8 }}>
               Page {page} / {totalPages}
             </div>
-            <button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>→</button>
 
-            <select value={pageSize} onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)); }}>
+            <button
+              disabled={page >= totalPages}
+              onClick={() =>
+                setPage((p) => Math.min(totalPages, p + 1))
+              }
+            >
+              →
+            </button>
+
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPage(1);
+                setPageSize(Number(e.target.value));
+              }}
+            >
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>

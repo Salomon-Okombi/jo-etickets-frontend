@@ -1,4 +1,4 @@
-import { api } from "@/api/axiosClient";
+import  api  from "@/api/axiosClient";
 
 export type ServerCartLine = {
   id: number;

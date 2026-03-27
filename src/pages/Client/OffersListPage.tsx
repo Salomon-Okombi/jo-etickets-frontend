@@ -1,17 +1,18 @@
-// src/pages/Client/OffersListPage.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { addToCart } from "@/api/carts.api";
-import { listOffers, type Offer, type PaginatedOffers } from "@/api/offers.api";
+import { listOffers } from "@/api/offers.api";
+import type { Offer, Paginated } from "@/types/offers";
 import { formatCurrency } from "@/utils/format";
 import useToast from "@/hooks/useToast";
 
 export default function OffersListPage() {
   const { showToast } = useToast();
-  const [data, setData] = useState<PaginatedOffers | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
 
-  async function load(p = 1) {
+  const [data, setData] = useState<Paginated<Offer> | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [page, setPage] = useState<number>(1);
+
+  async function load(p: number = 1) {
     setLoading(true);
     try {
       const res = await listOffers({ page: p });
@@ -23,7 +24,6 @@ export default function OffersListPage() {
 
   useEffect(() => {
     void load(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   async function handleAdd(offer: Offer) {
@@ -51,7 +51,7 @@ export default function OffersListPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {offers.map((o: Offer) => (
+          {offers.map((o) => (
             <div key={o.id} className="card bg-base-100 shadow">
               <div className="card-body">
                 <h2 className="card-title">{o.nom_offre}</h2>

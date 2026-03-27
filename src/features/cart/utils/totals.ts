@@ -1,39 +1,48 @@
 // src/utils/totals.ts
-import type { Cart, CartLine } from "@/api/carts.api";
-import type { Offer } from "@/api/offers.api";
+
+import type { Cart, CartLine } from "@/types/carts";
+import type { Offer } from "@/types/offers";
 
 /**
  * Calcule le sous-total d’une ligne de panier.
- * Retourne toujours un nombre flottant (0 par défaut).
+ * Retourne toujours un nombre (0 par défaut).
  */
 export function lineTotal(line: CartLine): number {
-  const price = parseFloat(line.prix_unitaire ?? line.offre_prix ?? "0");
-  return price * Number(line.quantite ?? 0);
+  const price = Number(line.prix_unitaire ?? 0);
+  const quantity = Number(line.quantite ?? 0);
+  return price * quantity;
 }
 
 /**
  * Calcule le total du panier à partir de ses lignes.
- * Si `cart.montant_total` est déjà exact côté backend, on peut l’utiliser directement.
  */
 export function cartTotal(cart: Cart): number {
-  if (!cart.lignes?.length) return 0;
-  return cart.lignes.reduce((sum, l) => sum + lineTotal(l), 0);
+  if (!cart.lignes || cart.lignes.length === 0) {
+    return 0;
+  }
+
+  return cart.lignes.reduce(
+    (sum: number, line: CartLine) => sum + lineTotal(line),
+    0
+  );
 }
 
 /**
- * Calcule le total pour une offre (prix unitaire * quantité choisie).
- * Pratique pour la page Offre ou le résumé avant paiement.
+ * Calcule le total pour une offre (prix * quantité).
  */
-export function offerTotal(offer: Offer, quantite = 1): number {
+export function offerTotal(offer: Offer, quantite: number = 1): number {
   return Number(offer.prix ?? 0) * quantite;
 }
 
 /**
- * Formate un nombre (prix) en euros.
- * Exemple : formatPrice(1250.5) → "1 250,50 €"
+ * Formate un nombre ou une string en prix €.
  */
-export function formatPrice(value: number | string, currency = "EUR"): string {
-  const num = typeof value === "string" ? parseFloat(value) : value;
+export function formatPrice(
+  value: number | string,
+  currency: string = "EUR"
+): string {
+  const num = typeof value === "string" ? Number(value) : value;
+
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency,
@@ -42,12 +51,20 @@ export function formatPrice(value: number | string, currency = "EUR"): string {
 }
 
 /**
- * Donne un résumé des totaux du panier :
+ * Résumé du panier :
  * - nombre total d’articles
- * - total TTC (somme des sous-totaux)
+ * - montant total
  */
-export function cartSummary(cart: Cart) {
-  const totalArticles = cart.lignes?.reduce((sum, l) => sum + Number(l.quantite ?? 0), 0) ?? 0;
+export function cartSummary(cart: Cart): {
+  totalArticles: number;
+  totalMontant: number;
+} {
+  const totalArticles = cart.lignes.reduce(
+    (sum: number, line: CartLine) => sum + Number(line.quantite ?? 0),
+    0
+  );
+
   const totalMontant = cartTotal(cart);
+
   return { totalArticles, totalMontant };
 }

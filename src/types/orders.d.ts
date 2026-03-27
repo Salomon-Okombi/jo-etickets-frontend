@@ -1,4 +1,12 @@
-export type OrderStatus = "EN_ATTENTE" | "PAYEE" | "ANNULEE" | string;
+/* ============================================================
+   Status
+============================================================ */
+
+export type OrderStatus = "EN_ATTENTE" | "PAYEE" | "ANNULEE";
+
+/* ============================================================
+   Lignes de commande
+============================================================ */
 
 export interface OrderLine {
   id: number;
@@ -8,6 +16,10 @@ export interface OrderLine {
   prix_unitaire: number | string;
   sous_total: number | string;
 }
+
+/* ============================================================
+   Commande
+============================================================ */
 
 export interface Order {
   id: number;
@@ -27,12 +39,20 @@ export interface Order {
   lignes: OrderLine[];
 }
 
+/* ============================================================
+   Pagination générique
+============================================================ */
+
 export interface Paginated<T> {
   count: number;
   next: string | null;
   previous: string | null;
   results: T[];
 }
+
+/* ============================================================
+   Paramètres de listing
+============================================================ */
 
 export interface OrderListParams {
   page?: number;
@@ -42,6 +62,10 @@ export interface OrderListParams {
   statut?: OrderStatus | "";
 }
 
+/* ============================================================
+   Création de commande
+============================================================ */
+
 export interface CreateOrderItem {
   offre: number;
   quantite: number;
@@ -50,6 +74,10 @@ export interface CreateOrderItem {
 export interface CreateOrderPayload {
   items: CreateOrderItem[];
 }
+
+/* ============================================================
+   Paiement
+============================================================ */
 
 export interface PayOrderPayload {
   reference_paiement?: string;

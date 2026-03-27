@@ -1,6 +1,6 @@
 // src/features/catalog/utils/filters.ts
 import type { Event } from "@/api/events.api";
-import type { Offer } from "@/api/offers.api";
+import type { Offer } from "@/types/offers";
 
 /* ------------------------------------------------------------------
    Types de filtres
