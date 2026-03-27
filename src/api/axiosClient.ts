@@ -1,43 +1,26 @@
-// src/api/axiosClient.ts
 import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
+  AxiosError,
+  AxiosInstance,
+  InternalAxiosRequestConfig,
 } from "axios";
 
 /**
  * ===========================================================
- * 🌐 AXIOS CLIENT — Gestion JWT + Refresh automatique
- * ===========================================================
- * - Injecte le token JWT dans chaque requête
- * - Rafraîchit automatiquement le token expiré (401)
- * - Synchronise le stockage local
+ * AXIOS CLIENT — JWT + Refresh automatique
  * ===========================================================
  */
 
-/* ------------------------------------------------------------------
-   ⚙️ CONFIGURATION DE BASE
------------------------------------------------------------------- */
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-/**
- * Base URL de l'API backend Django.
- * Exemple dans ton .env :
- * VITE_API_URL=http://127.0.0.1:8000/api
- */
-const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api").replace(
-  /\/+$/,
-  ""
-);
+if (!BASE_URL) {
+  throw new Error("VITE_API_BASE_URL non définie");
+}
 
-/** Endpoint de refresh JWT (adaptable si besoin) */
-const REFRESH_ENDPOINT =
-  import.meta.env.VITE_JWT_REFRESH_URL ?? "/utilisateurs/token/refresh/";
-
-/** Clé utilisée dans localStorage pour stocker les tokens JWT */
+const REFRESH_ENDPOINT = "/utilisateurs/token/refresh/";
 const AUTH_STORAGE_KEY = "auth_tokens";
 
 /* ------------------------------------------------------------------
-   🔐 Types et gestion du stockage
+   Types
 ------------------------------------------------------------------ */
 
 export interface JwtPair {
@@ -45,18 +28,21 @@ export interface JwtPair {
   refresh: string;
 }
 
-/** Récupère les tokens du localStorage (ou null si absent) */
+/* ------------------------------------------------------------------
+   LocalStorage helpers
+------------------------------------------------------------------ */
+
 function getStoredTokens(): JwtPair | null {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) return null;
+
     const parsed = JSON.parse(raw);
     if (
-      parsed &&
-      typeof parsed.access === "string" &&
-      typeof parsed.refresh === "string"
+      typeof parsed?.access === "string" &&
+      typeof parsed?.refresh === "string"
     ) {
-      return parsed as JwtPair;
+      return parsed;
     }
     return null;
   } catch {
@@ -64,25 +50,21 @@ function getStoredTokens(): JwtPair | null {
   }
 }
 
-/** Sauvegarde les tokens */
 function setStoredTokens(tokens: JwtPair) {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokens));
 }
 
-/** Supprime les tokens et déclenche un event de logout */
 function clearStoredTokens() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   window.dispatchEvent(new CustomEvent("auth:logout"));
 }
 
 /* ------------------------------------------------------------------
-   ⚙️ Instance Axios principale
+   Axios instance
 ------------------------------------------------------------------ */
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  // Si tu utilises des cookies côté Django + CORS_ALLOW_CREDENTIALS=True :
-  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -91,66 +73,63 @@ export const api: AxiosInstance = axios.create({
 });
 
 /* ------------------------------------------------------------------
-   ♻️ Rafraîchissement du token
+   Refresh logic
 ------------------------------------------------------------------ */
 
 let isRefreshing = false;
-let refreshWaiters: Array<(token: string) => void> = [];
+let refreshQueue: Array<(token: string) => void> = [];
 
-/** Notifie toutes les requêtes en attente après un refresh réussi */
-function notifyWaiters(newAccess: string) {
-  refreshWaiters.forEach((resolve) => resolve(newAccess));
-  refreshWaiters = [];
+function notifyQueue(newAccess: string) {
+  refreshQueue.forEach((cb) => cb(newAccess));
+  refreshQueue = [];
 }
 
-/** Rafraîchit le token access en utilisant le refresh token */
 async function refreshAccessToken(): Promise<string> {
-  const current = getStoredTokens();
-  if (!current?.refresh) throw new Error("No refresh token available");
+  const tokens = getStoredTokens();
+  if (!tokens?.refresh) {
+    throw new Error("No refresh token");
+  }
 
-  // Client sans interceptors pour éviter boucle
-  const bare = axios.create({ baseURL: BASE_URL });
+  const response = await axios.post<{ access: string }>(
+    `${BASE_URL}${REFRESH_ENDPOINT}`,
+    { refresh: tokens.refresh }
+  );
 
-  const { data } = await bare.post<{ access: string }>(REFRESH_ENDPOINT, {
-    refresh: current.refresh,
-  });
+  const updated: JwtPair = {
+    access: response.data.access,
+    refresh: tokens.refresh,
+  };
 
-  const updated: JwtPair = { access: data.access, refresh: current.refresh };
   setStoredTokens(updated);
-  return data.access;
+  return response.data.access;
 }
 
 /* ------------------------------------------------------------------
-   🚀 Interceptor de requêtes
-   → Ajoute le token JWT si présent
+   Request interceptor
 ------------------------------------------------------------------ */
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const tokens = getStoredTokens();
-  if (tokens?.access) {
-    config.headers = config.headers ?? {};
-    (config.headers as Record<string, string>)["Authorization"] =
-      `Bearer ${tokens.access}`;
+
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const tokens = getStoredTokens();
+    if (tokens?.access) {
+      config.headers.Authorization = `Bearer ${tokens.access}`;
+    }
+    return config;
   }
-  return config;
-});
+);
 
 /* ------------------------------------------------------------------
-   ⚠️ Interceptor de réponses
-   → Si 401 : tente un refresh automatique du token
+   Response interceptor (401 → refresh)
 ------------------------------------------------------------------ */
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
       | undefined;
-    const status = error.response?.status;
 
-    // Pas de retry si :
-    // - pas de config
-    // - status != 401
-    // - requête déjà retentée
-    if (!original || status !== 401 || original._retry) {
+    if (!original || error.response?.status !== 401 || original._retry) {
       return Promise.reject(error);
     }
 
@@ -163,27 +142,21 @@ api.interceptors.response.use(
         isRefreshing = true;
         newAccess = await refreshAccessToken();
         isRefreshing = false;
-        notifyWaiters(newAccess);
+        notifyQueue(newAccess);
       } else {
-        // On attend la fin du refresh en cours
         newAccess = await new Promise<string>((resolve, reject) => {
-          refreshWaiters.push(resolve);
+          refreshQueue.push(resolve);
           setTimeout(() => reject(new Error("Refresh timeout")), 10000);
         });
       }
 
-      // Rejoue la requête initiale avec le nouveau token
-      original.headers = original.headers ?? {};
-      (original.headers as Record<string, string>)["Authorization"] =
-        `Bearer ${newAccess}`;
-
+      original.headers.Authorization = `Bearer ${newAccess}`;
       return api(original);
-    } catch (err) {
-      // Refresh échoué → déconnexion
+    } catch (e) {
       isRefreshing = false;
-      refreshWaiters = [];
+      refreshQueue = [];
       clearStoredTokens();
-      return Promise.reject(err);
+      return Promise.reject(e);
     }
   }
 );
