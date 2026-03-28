@@ -6,12 +6,13 @@ import axios, {
 
 /**
  * ===========================================================
- * AXIOS CLIENT — JWT + Refresh automatique (PRODUCTION READY)
+ * AXIOS CLIENT — PUBLIC + AUTH (JWT) — PRODUCTION READY
  * ===========================================================
- * - Ajoute automatiquement le token JWT
- * - Rafraîchit le token expiré (401)
- * - Évite les doubles refresh (queue)
- * - Compatible Vite + Django SimpleJWT
+ * Pas d'Authorization pour les visiteurs
+ * JWT ajouté uniquement si valide
+ * Refresh automatique SimpleJWT
+ * Queue anti double refresh
+ * Compatible Django REST Framework + Render
  * ===========================================================
  */
 
@@ -38,7 +39,7 @@ export interface JwtPair {
 }
 
 /* ------------------------------------------------------------------
-   LocalStorage helpers
+   Storage helpers
 ------------------------------------------------------------------ */
 
 function getStoredTokens(): JwtPair | null {
@@ -69,10 +70,10 @@ function clearStoredTokens() {
 }
 
 /* ------------------------------------------------------------------
-   Instance Axios principale
+   Axios instance
 ------------------------------------------------------------------ */
 
-export const api: AxiosInstance = axios.create({
+const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 20000,
   headers: {
@@ -82,14 +83,14 @@ export const api: AxiosInstance = axios.create({
 });
 
 /* ------------------------------------------------------------------
-   Refresh logic
+   Refresh logic (anti double refresh)
 ------------------------------------------------------------------ */
 
 let isRefreshing = false;
 let refreshQueue: Array<(token: string) => void> = [];
 
-function notifyQueue(newAccess: string) {
-  refreshQueue.forEach((cb) => cb(newAccess));
+function notifyQueue(newToken: string) {
+  refreshQueue.forEach((cb) => cb(newToken));
   refreshQueue = [];
 }
 
@@ -114,21 +115,29 @@ async function refreshAccessToken(): Promise<string> {
 }
 
 /* ------------------------------------------------------------------
-   Interceptor REQUEST (JWT)
+   REQUEST INTERCEPTOR
+   Envoie Authorization UNIQUEMENT si token valide
 ------------------------------------------------------------------ */
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const tokens = getStoredTokens();
-    if (tokens?.access) {
+
+    if (tokens && typeof tokens.access === "string" && tokens.access.length > 0) {
       config.headers.Authorization = `Bearer ${tokens.access}`;
+    } else {
+      // CRITIQUE : ne jamais envoyer Authorization vide
+      delete config.headers.Authorization;
     }
+
     return config;
-  }
+  },
+  (error) => Promise.reject(error)
 );
 
 /* ------------------------------------------------------------------
-   Interceptor RESPONSE (401 → refresh)
+   RESPONSE INTERCEPTOR
+   401 → refresh automatique → retry
 ------------------------------------------------------------------ */
 
 api.interceptors.response.use(

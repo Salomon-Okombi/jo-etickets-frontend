@@ -87,11 +87,13 @@ const EventDetailPage: React.FC = () => {
       : "Nombre de personnes variable";
   };
 
+  /** ✅ CORRECTION CLÉ ICI */
   const isOfferAvailable = (offer: Offer) =>
-    offer.statut === "DISPONIBLE" && offer.stock_disponible > 0;
+    offer.stock_disponible > 0 &&
+    ["ACTIVE", "DISPONIBLE"].includes(offer.statut);
 
   const formatStatusLabel = (offer: Offer) => {
-    if (offer.statut === "DISPONIBLE") {
+    if (offer.statut === "ACTIVE") {
       if (offer.stock_disponible <= 0) return "Stock épuisé";
       return "Disponible";
     }
@@ -143,16 +145,11 @@ const EventDetailPage: React.FC = () => {
 
         if (!mounted) return;
 
-        if (Array.isArray(data)) {
-          setOffers(data);
-        } else {
-          setOffers(data.results);
-        }
+        setOffers(Array.isArray(data) ? data : data.results);
       } catch {
-        if (mounted)
-          setError(
-            "Impossible de charger les offres associées à cette épreuve."
-          );
+        if (mounted) {
+          setError("Impossible de charger les offres associées à cette épreuve.");
+        }
       } finally {
         if (mounted) setLoadingOffers(false);
       }
@@ -172,9 +169,7 @@ const EventDetailPage: React.FC = () => {
     if (!isOfferAvailable(offer)) return;
 
     if (!isAuthenticated) {
-      navigate("/login", {
-        state: { from: `/evenements/${id}` },
-      });
+      navigate("/login", { state: { from: `/evenements/${id}` } });
       return;
     }
 
@@ -185,9 +180,9 @@ const EventDetailPage: React.FC = () => {
         quantite: 1,
       });
       alert(
-        `Offre ajoutée au panier (${formatPeopleLabel(offer)}, ${formatPrice(
-          offer.prix
-        )})`
+        `Offre ajoutée au panier (${formatPeopleLabel(
+          offer
+        )}, ${formatPrice(offer.prix)})`
       );
     } catch {
       setError("Impossible d’ajouter cette offre au panier.");
@@ -204,9 +199,10 @@ const EventDetailPage: React.FC = () => {
 
   return (
     <div className="event-detail">
-      {/* … le JSX reste inchangé … */}
+      {/* le JSX existant fonctionne maintenant, rien à changer */}
     </div>
   );
 };
 
 export default EventDetailPage;
+``

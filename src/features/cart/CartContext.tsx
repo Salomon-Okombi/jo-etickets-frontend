@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import type { CartItem } from "./cart.types";
 import { clearCartStorage, countItems, loadCart, saveCart } from "./cart.storage";
-import { api } from "@/api/axiosClient";
+import  api  from "@/api/axiosClient";
 import useAuth from "@/hooks/useAuth";
 
 type CartContextValue = {
