@@ -1,6 +1,6 @@
 // src/features/admin/hooks/useAdminStats.ts
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/api/axiosClient";
+import  api  from "@/api/axiosClient";
 
 export interface OfferStats {
   offre_id: number;

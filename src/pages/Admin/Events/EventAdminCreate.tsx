@@ -1,7 +1,7 @@
 // src/pages/Admin/Events/EventAdminCreate.tsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "@/api/axiosClient";
+import  api  from "@/api/axiosClient";
 import "@/styles/admin.css";
 
 type EventStatus = "A_VENIR" | "EN_COURS" | "TERMINE";

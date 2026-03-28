@@ -1,6 +1,6 @@
 // src/features/admin/hooks/useAdminUsers.ts
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/api/axiosClient";
+import  api  from "@/api/axiosClient";
 
 export interface AdminUser {
   id: number;
