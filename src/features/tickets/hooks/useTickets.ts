@@ -1,35 +1,43 @@
 // src/hooks/useTickets.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  listTickets,
-  getTicket,
-  validateTicketByKey,
-  validateTicket,
-  downloadTicketPng,
-  downloadTicketPdf,
-  cancelTicket,
-  deleteTicket,
-  type Ticket,
-} from "@/api/tickets.api";
+  listBillets,
+  getBillet,
+  validerBillet,
+  validerBilletParCle,
+  annulerBillet,
+  deleteBillet,
+  downloadBilletPng,
+  downloadBilletPdf,
+} from "@/api/billets.api";
+import type { EBillet, Paginated } from "@/types/billets";
 
 interface UseTicketsOptions {
   autoFetch?: boolean;
 }
 
+function unwrapBillets(
+  data: Paginated<EBillet> | EBillet[]
+): EBillet[] {
+  if (Array.isArray(data)) return data;
+  return data.results ?? [];
+}
+
 export function useTickets(options: UseTicketsOptions = {}) {
   const { autoFetch = true } = options;
 
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<EBillet[]>([]);
   const [loading, setLoading] = useState(autoFetch);
   const [error, setError] = useState<string | null>(null);
 
-  /* ----------------------- Fetch list ----------------------- */
+  /* ======================= LIST ======================= */
   const fetchTickets = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
-      const data = await listTickets(); // GET /billets/
-      setTickets(data.results ?? []); // ✅ utilise data.results
+      const data = await listBillets();
+      setTickets(unwrapBillets(data));
     } catch (e: any) {
       setError(e?.message ?? "Erreur lors du chargement des billets");
     } finally {
@@ -41,48 +49,53 @@ export function useTickets(options: UseTicketsOptions = {}) {
     if (autoFetch) void fetchTickets();
   }, [autoFetch, fetchTickets]);
 
-  /* ----------------------- Get one -------------------------- */
+  /* ======================= GET ONE ==================== */
   const fetchTicket = useCallback(async (id: number) => {
     setError(null);
     try {
-      const t = await getTicket(id);
+      const billet = await getBillet(id);
+
       setTickets((prev) => {
-        const idx = prev.findIndex((x) => x.id === id);
-        if (idx === -1) return [...prev, t];
+        const index = prev.findIndex((b) => b.id === id);
+        if (index === -1) return [...prev, billet];
         const copy = [...prev];
-        copy[idx] = t;
+        copy[index] = billet;
         return copy;
       });
-      return t;
+
+      return billet;
     } catch (e: any) {
       setError(e?.message ?? "Erreur lors du chargement du billet");
       throw e;
     }
   }, []);
 
-  /* ----------------------- Validate (by id) ----------------- */
+  /* ======================= VALIDATE =================== */
   const validateById = useCallback(
-    async (id: number, payload?: { lieu_utilisation?: string; date_utilisation?: string }) => {
+    async (
+      id: number,
+      payload?: { lieu_utilisation?: string }
+    ) => {
       setError(null);
       try {
-        const updated = await validateTicket(id, payload);
-        setTickets((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
-        );
+        await validerBillet(id, payload);
+        await fetchTicket(id); // resync propre
       } catch (e: any) {
         setError(e?.message ?? "Impossible de valider le billet");
         throw e;
       }
     },
-    []
+    [fetchTicket]
   );
 
-  /* ----------------------- Validate (by key) ---------------- */
   const validateByKey = useCallback(
-    async (cle_finale: string, payload?: { lieu_utilisation?: string; date_utilisation?: string }) => {
+    async (
+      cle_finale: string,
+      payload?: { lieu_utilisation?: string }
+    ) => {
       setError(null);
       try {
-        await validateTicketByKey(cle_finale, payload);
+        await validerBilletParCle({ cle_finale, ...payload });
       } catch (e: any) {
         setError(e?.message ?? "Impossible de valider le billet via la clé");
         throw e;
@@ -91,13 +104,15 @@ export function useTickets(options: UseTicketsOptions = {}) {
     []
   );
 
-  /* ----------------------- Cancel --------------------------- */
-  const cancelById = useCallback(async (id: number, raison?: string) => {
+  /* ======================= CANCEL ===================== */
+  const cancelById = useCallback(async (id: number) => {
     setError(null);
     try {
-      const updated = await cancelTicket(id, raison);
+      await annulerBillet(id);
       setTickets((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
+        prev.map((b) =>
+          b.id === id ? { ...b, statut: "ANNULE" } : b
+        )
       );
     } catch (e: any) {
       setError(e?.message ?? "Impossible d’annuler le billet");
@@ -105,25 +120,25 @@ export function useTickets(options: UseTicketsOptions = {}) {
     }
   }, []);
 
-  /* ----------------------- Delete --------------------------- */
+  /* ======================= DELETE ===================== */
   const removeById = useCallback(async (id: number) => {
     setError(null);
     try {
-      await deleteTicket(id);
-      setTickets((prev) => prev.filter((t) => t.id !== id));
+      await deleteBillet(id);
+      setTickets((prev) => prev.filter((b) => b.id !== id));
     } catch (e: any) {
       setError(e?.message ?? "Impossible de supprimer le billet");
       throw e;
     }
   }, []);
 
-  /* ----------------------- Downloads ------------------------ */
+  /* ======================= DOWNLOAD =================== */
   const getPngBlob = useCallback(async (id: number) => {
     setError(null);
     try {
-      return await downloadTicketPng(id);
+      return await downloadBilletPng(id);
     } catch (e: any) {
-      setError(e?.message ?? "Téléchargement du QR PNG impossible");
+      setError(e?.message ?? "Téléchargement PNG impossible");
       throw e;
     }
   }, []);
@@ -131,9 +146,9 @@ export function useTickets(options: UseTicketsOptions = {}) {
   const getPdfBlob = useCallback(async (id: number) => {
     setError(null);
     try {
-      return await downloadTicketPdf(id);
+      return await downloadBilletPdf(id);
     } catch (e: any) {
-      setError(e?.message ?? "Téléchargement du PDF impossible");
+      setError(e?.message ?? "Téléchargement PDF impossible");
       throw e;
     }
   }, []);
