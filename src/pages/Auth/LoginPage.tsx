@@ -20,8 +20,13 @@ function resolveFromPath(state: LocationState): string | null {
   return null;
 }
 
+// ✅ ALIGNÉ AVEC LE BACKEND (Utilise `role`)
 function isAdminProfile(profile: any): boolean {
-  return profile?.type_compte === "ADMIN" || profile?.is_staff === true || profile?.is_superuser === true;
+  return (
+    profile?.role === "ADMIN" ||
+    profile?.is_staff === true ||
+    profile?.is_superuser === true
+  );
 }
 
 function pickPostLoginTarget(profile: any, fromPath: string | null): string {
@@ -31,8 +36,7 @@ function pickPostLoginTarget(profile: any, fromPath: string | null): string {
     return fromPath?.startsWith("/admin") ? fromPath : "/admin";
   }
 
-  // Si l'utilisateur venait du tunnel paiement, on retourne sur la porte /checkout
-  // (elle synchronise le panier et redirige vers /mon-espace/checkout)
+  // Si l'utilisateur venait du tunnel paiement
   if (fromPath === "/checkout") return "/checkout";
 
   return fromPath ?? "/mon-espace/commandes";
@@ -50,10 +54,13 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fromPath = useMemo(() => resolveFromPath(location.state as LocationState), [location.state]);
+  const fromPath = useMemo(
+    () => resolveFromPath(location.state as LocationState),
+    [location.state]
+  );
 
   useEffect(() => {
-    // Si déjà connecté et ouverture manuelle de /login, je redirige proprement une seule fois.
+    // Si déjà connecté et accès manuel à /login
     if (!isAuthenticated || !user) return;
 
     const normalized = normalizeUser(user as any);
@@ -73,18 +80,18 @@ const LoginPage: React.FC = () => {
     try {
       setLoading(true);
 
-      // 1) Tokens JWT
+      // 1️⃣ JWT
       const tokens: JwtPair = await loginUser(username.trim(), password);
       storeTokens(tokens);
 
-      // 2) Profil
+      // 2️⃣ Profil
       const rawProfile = await getProfile();
       const profile = normalizeUser(rawProfile as any);
 
-      // 3) Contexte auth
+      // 3️⃣ Contexte auth
       setUser(profile as any);
 
-      // 4) Redirection tunnel
+      // 4️⃣ Redirection
       const target = pickPostLoginTarget(profile, fromPath);
       navigate(target, { replace: true });
     } catch (err) {
@@ -103,7 +110,7 @@ const LoginPage: React.FC = () => {
             <div className="auth-page__logo-mark">JO</div>
             <div className="auth-page__logo-text">
               <span className="auth-page__logo-title">Paris 2024</span>
-              <span className="auth-page__logo-subtitle">Billetterie e-Tickets</span>
+              <span className="auth-page__logo-subtitle">Billetterie e‑Tickets</span>
             </div>
           </div>
 
@@ -112,7 +119,9 @@ const LoginPage: React.FC = () => {
             <span>JO Paris 2024</span>
           </h1>
 
-          <p className="auth-page__text">Accès aux paniers, commandes et e-billets sécurisés.</p>
+          <p className="auth-page__text">
+            Accès aux paniers, commandes et e‑billets sécurisés.
+          </p>
         </section>
 
         <section className="auth-page__panel">
@@ -155,7 +164,11 @@ const LoginPage: React.FC = () => {
               </div>
 
               <div className="auth-form__footer">
-                <button type="submit" className="auth-form__submit" disabled={loading}>
+                <button
+                  type="submit"
+                  className="auth-form__submit"
+                  disabled={loading}
+                >
                   {loading ? "Connexion en cours..." : "Se connecter"}
                 </button>
               </div>

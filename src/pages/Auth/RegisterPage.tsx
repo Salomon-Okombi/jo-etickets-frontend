@@ -3,12 +3,12 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   registerUser,
-  type RegisterPayload,
   loginUser,
   storeTokens,
   getProfile,
 } from "@/api/auth.api";
-import { useAuth } from "@/hooks/useAuth";
+import useAuth from "@/hooks/useAuth";
+import { normalizeUser } from "@/utils/authNormalize";
 
 interface LocationState {
   from?: string;
@@ -31,7 +31,7 @@ const RegisterPage: React.FC = () => {
     (location.state as LocationState | undefined)?.from ||
     "/mon-espace/commandes";
 
-  // Si déjà connecté → inutile d'afficher la page d'inscription
+  //  Si déjà connecté → redirection
   useEffect(() => {
     if (isAuthenticated) {
       navigate(from, { replace: true });
@@ -63,32 +63,29 @@ const RegisterPage: React.FC = () => {
     try {
       setLoading(true);
 
-      const payload: RegisterPayload = {
+      //  Payload minimal, cohérent avec le backend
+      const payload = {
         username: username.trim(),
         email: email.trim(),
         password,
-        type_compte: "CLIENT"
       };
 
-      // 1. Création du compte
-      await registerUser(payload);
+      // Création du compte
+      await registerUser(payload as any);
 
-      // 2. Connexion automatique
-      const tokens = await loginUser(payload.username, payload.password);
+      // Connexion automatique
+      const tokens = await loginUser(
+        payload.username,
+        payload.password
+      );
       storeTokens(tokens);
 
-      // 3. Chargement du profil
-      try {
-        const profile = await getProfile();
-        setUser(profile);
-      } catch (profileError) {
-        console.error(
-          "Impossible de charger le profil après inscription :",
-          profileError
-        );
-      }
+      // Chargement du profil
+      const rawProfile = await getProfile();
+      const profile = normalizeUser(rawProfile as any);
+      setUser(profile as any);
 
-      // 4. Redirection vers la page d'origine ou mon espace
+      // Redirection
       navigate(from, { replace: true });
     } catch (err) {
       console.error(err);
@@ -103,14 +100,13 @@ const RegisterPage: React.FC = () => {
   return (
     <div className="auth-page">
       <div className="auth-page__inner">
-        {/* Bloc gauche : texte / branding */}
         <section className="auth-page__intro">
           <div className="auth-page__logo">
             <div className="auth-page__logo-mark">JO</div>
             <div className="auth-page__logo-text">
               <span className="auth-page__logo-title">Paris 2024</span>
               <span className="auth-page__logo-subtitle">
-                Billetterie e-Tickets
+                Billetterie e‑Tickets
               </span>
             </div>
           </div>
@@ -121,27 +117,14 @@ const RegisterPage: React.FC = () => {
           </h1>
 
           <p className="auth-page__text">
-            En créant un compte, vous pourrez réserver vos e-billets, suivre vos
-            commandes et retrouver à tout moment vos accès aux sites
-            olympiques.
+            En créant un compte, vous pourrez réserver vos e‑billets,
+            suivre vos commandes et accéder à vos événements.
           </p>
-
-          <ul className="auth-page__bullets">
-            <li>Un compte unique pour toutes vos réservations</li>
-            <li>E-billets sécurisés, accessibles en ligne</li>
-            <li>Historique des commandes et paiements</li>
-          </ul>
         </section>
 
-        {/* Bloc droit : formulaire d'inscription */}
         <section className="auth-page__panel">
           <div className="auth-card">
             <h2 className="auth-card__title">Créer un compte</h2>
-            <p className="auth-card__subtitle">
-              Renseignez un nom d&apos;utilisateur, un email valide et un mot de
-              passe sécurisé. Vous serez automatiquement connecté après
-              l&apos;inscription.
-            </p>
 
             {error && (
               <div className="auth-card__alert">
@@ -152,7 +135,7 @@ const RegisterPage: React.FC = () => {
             <form className="auth-form" onSubmit={handleSubmit}>
               <div className="auth-form__field">
                 <label htmlFor="username" className="auth-form__label">
-                  Nom d&apos;utilisateur
+                  Nom d’utilisateur
                 </label>
                 <input
                   id="username"
@@ -161,7 +144,6 @@ const RegisterPage: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="auth-form__input"
-                  placeholder="ex : jean.dupont"
                 />
               </div>
 
@@ -176,7 +158,6 @@ const RegisterPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="auth-form__input"
-                  placeholder="vous@example.com"
                 />
               </div>
 
@@ -191,7 +172,6 @@ const RegisterPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="auth-form__input"
-                  placeholder="Au moins 8 caractères"
                 />
               </div>
 
@@ -209,7 +189,6 @@ const RegisterPage: React.FC = () => {
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   className="auth-form__input"
-                  placeholder="Retapez votre mot de passe"
                 />
               </div>
 
@@ -235,9 +214,8 @@ const RegisterPage: React.FC = () => {
           </div>
 
           <p className="auth-page__security">
-            🔐 En créant un compte, vous acceptez que vos données soient
-            utilisées pour la gestion de vos commandes d’e-billets dans le
-            cadre de ce projet pédagogique.
+             Vos données sont utilisées uniquement dans le cadre
+            de ce projet pédagogique.
           </p>
         </section>
       </div>
