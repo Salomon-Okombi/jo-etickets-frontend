@@ -1,4 +1,4 @@
-/*//*import React from "react";
+//*import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
 
@@ -24,4 +24,4 @@ export default function ClientLayout() {
   // Client autorisé → affichage de la page enfant
   return <Outlet />;
 }
-``*/
+``
