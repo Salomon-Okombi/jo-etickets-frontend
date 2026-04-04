@@ -5,6 +5,7 @@ import {
   initAuthFromStorage,
   clearStoredTokens,
 } from "@/api/auth.api";
+import { normalizeUser } from "@/utils/authNormalize";
 
 interface AuthContextType {
   user: User | null;
@@ -14,36 +15,44 @@ interface AuthContextType {
   logout: () => void;
 }
 
-//  Export nommé du contexte
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
 
-//  Export par défaut du provider
 const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Au démarrage : relire les tokens + éventuellement charger le profil
   useEffect(() => {
-    const tokens = initAuthFromStorage();
-    if (!tokens) {
-      setLoading(false);
-      return;
-    }
+    let mounted = true;
 
-    (async () => {
+    async function initAuth() {
+      const tokens = initAuthFromStorage();
+
+      if (!tokens) {
+        if (mounted) setLoading(false);
+        return;
+      }
+
       try {
         const profile = await getProfile();
-        setUser(profile);
+        if (mounted) {
+          setUser(normalizeUser(profile as any));
+        }
       } catch (err) {
         console.error("Erreur lors du chargement du profil :", err);
         clearStoredTokens();
-        setUser(null);
+        if (mounted) setUser(null);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
-    })();
+    }
+
+    initAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const logout = () => {
@@ -59,7 +68,11 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     logout,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthProvider;
