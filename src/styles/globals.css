@@ -1950,7 +1950,6 @@ body,
 .event-card__link:hover {
   color: #0f172a;
 }
-
 @media (max-width: 700px) {
   .event-card__actions {
     flex-direction: column;
