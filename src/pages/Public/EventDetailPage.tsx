@@ -1,35 +1,18 @@
-// src/pages/Public/EventDetailPage.tsx
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "@/utils/http";
-import type { Offer } from "@/types/offers";
 import { useAuth } from "@/hooks/useAuth";
-
-/* ============================================================
-   Types locaux
-============================================================ */
 
 type EventDetail = {
   id: number;
   nom_evenement: string;
-  description: string | null;
+  description_longue: string;
+  image_url: string;
   lieu: string;
   date_evenement: string;
   heure_evenement?: string | null;
   discipline?: string | null;
-  site?: string | null;
 };
-
-type Paginated<T> = {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-};
-
-/* ============================================================
-   Page
-============================================================ */
 
 const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,88 +20,27 @@ const EventDetailPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
   const [event, setEvent] = useState<EventDetail | null>(null);
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [loadingEvent, setLoadingEvent] = useState(true);
-  const [loadingOffers, setLoadingOffers] = useState(true);
-  const [addingOfferId, setAddingOfferId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /* ============================================================
-     Helpers
-  ============================================================ */
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString("fr-FR", {
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatTime = (raw?: string | null) => {
-    if (!raw) return null;
-    const [h, m] = raw.split(":");
-    const d = new Date();
-    d.setHours(Number(h), Number(m || 0), 0, 0);
-    return d.toLocaleTimeString("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatPrice = (raw: Offer["prix"]) => {
-    const value =
-      typeof raw === "string" ? Number(raw || 0) : Number(raw ?? 0);
-    return value.toLocaleString("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-    });
-  };
-
-  const formatPeopleLabel = (offer: Offer) => {
-    if (offer.nb_personnes === 1) return "1 personne";
-    if (offer.nb_personnes === 2) return "2 personnes";
-    if (offer.nb_personnes === 4) return "4 personnes";
-    return offer.nb_personnes
-      ? `${offer.nb_personnes} personnes`
-      : "Nombre de personnes variable";
-  };
-
-  /** ✅ CORRECTION CLÉ ICI */
-  const isOfferAvailable = (offer: Offer) =>
-    offer.stock_disponible > 0 &&
-    ["ACTIVE", "DISPONIBLE"].includes(offer.statut);
-
-  const formatStatusLabel = (offer: Offer) => {
-    if (offer.statut === "ACTIVE") {
-      if (offer.stock_disponible <= 0) return "Stock épuisé";
-      return "Disponible";
-    }
-    if (offer.statut === "EPUISEE") return "Épuisée";
-    return "Indisponible";
-  };
-
-  /* ============================================================
-     Chargement Épreuve
-  ============================================================ */
-
   useEffect(() => {
-    if (!id) return;
     let mounted = true;
 
     async function fetchEvent() {
       try {
-        setLoadingEvent(true);
+        setLoading(true);
         setError(null);
+
         const { data } = await api.get<EventDetail>(`/evenements/${id}/`);
-        if (mounted) setEvent(data);
+        if (!mounted) return;
+
+        setEvent(data);
       } catch {
-        if (mounted) setError("Impossible de charger cette épreuve.");
+        if (mounted) {
+          setError("Impossible de charger le détail de l’événement.");
+        }
       } finally {
-        if (mounted) setLoadingEvent(false);
+        if (mounted) setLoading(false);
       }
     }
 
@@ -128,81 +50,107 @@ const EventDetailPage: React.FC = () => {
     };
   }, [id]);
 
-  /* ============================================================
-     Chargement Offres
-  ============================================================ */
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
 
-  useEffect(() => {
-    if (!id) return;
-    let mounted = true;
+  const formatTime = (heure?: string | null) => {
+    if (!heure) return null;
+    const [h, m] = heure.split(":");
+    const d = new Date();
+    d.setHours(Number(h), Number(m || 0));
+    return d.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
-    async function fetchOffers() {
-      try {
-        setLoadingOffers(true);
-        const { data } = await api.get<Paginated<Offer> | Offer[]>("/offres/", {
-          params: { evenement: id },
-        });
-
-        if (!mounted) return;
-
-        setOffers(Array.isArray(data) ? data : data.results);
-      } catch {
-        if (mounted) {
-          setError("Impossible de charger les offres associées à cette épreuve.");
-        }
-      } finally {
-        if (mounted) setLoadingOffers(false);
-      }
-    }
-
-    fetchOffers();
-    return () => {
-      mounted = false;
-    };
-  }, [id]);
-
-  /* ============================================================
-     Ajout au panier
-  ============================================================ */
-
-  const handleAddOfferToCart = async (offer: Offer) => {
-    if (!isOfferAvailable(offer)) return;
-
+  const handleReserve = () => {
     if (!isAuthenticated) {
-      navigate("/login", { state: { from: `/evenements/${id}` } });
+      navigate("/login", {
+        state: { from: `/evenements/${id}` },
+      });
       return;
     }
 
-    try {
-      setAddingOfferId(offer.id);
-      await api.post("/paniers/add/", {
-        offre: offer.id,
-        quantite: 1,
-      });
-      alert(
-        `Offre ajoutée au panier (${formatPeopleLabel(
-          offer
-        )}, ${formatPrice(offer.prix)})`
-      );
-    } catch {
-      setError("Impossible d’ajouter cette offre au panier.");
-    } finally {
-      setAddingOfferId(null);
-    }
+    // Point 2 : sélection de l’offre
+    navigate(`/evenements/${id}/reserver`);
   };
 
-  const time = formatTime(event?.heure_evenement || null);
+  if (loading) {
+    return (
+      <div className="event-detail">
+        <div className="event-detail__state">Chargement…</div>
+      </div>
+    );
+  }
 
-  /* ============================================================
-     Render
-  ============================================================ */
+  if (error || !event) {
+    return (
+      <div className="event-detail">
+        <div className="event-detail__state event-detail__state--error">
+          {error ?? "Événement introuvable."}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="event-detail">
-      {/* le JSX existant fonctionne maintenant, rien à changer */}
+      <section className="event-detail__hero">
+        <div className="event-detail__hero-inner">
+          <nav className="event-detail__breadcrumbs">
+            <Link to="/evenements">Événements</Link> /{" "}
+            <span>{event.nom_evenement}</span>
+          </nav>
+
+          <div className="event-detail__date">
+            {formatDate(event.date_evenement)}
+            {formatTime(event.heure_evenement) &&
+              ` • ${formatTime(event.heure_evenement)}`}
+          </div>
+
+          <h1 className="event-detail__title">
+            {event.nom_evenement}
+          </h1>
+
+          <div className="event-detail__meta">
+            {event.discipline && <span>{event.discipline}</span>}
+            <span>{event.lieu}</span>
+          </div>
+
+          <p className="event-detail__description">
+            {event.description_longue}
+          </p>
+        </div>
+      </section>
+
+      <section className="event-detail__content">
+        <div className="event-detail__content-inner">
+          <div className="event-detail__image-wrapper">
+            <img
+              src={event.image_url}
+              alt={event.nom_evenement}
+              className="event-detail__image"
+            />
+          </div>
+
+          <div className="event-detail__actions">
+            <button
+              className="event-card__cta"
+              onClick={handleReserve}
+            >
+              Réserver
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
 
 export default EventDetailPage;
-``
