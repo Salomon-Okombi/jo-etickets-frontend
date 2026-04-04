@@ -37,7 +37,7 @@ const EventDetailPage: React.FC = () => {
         setEvent(data);
       } catch {
         if (mounted) {
-          setError("Impossible de charger le détail de l’événement.");
+          setError("Impossible de charger le détail de l’épreuve.");
         }
       } finally {
         if (mounted) setLoading(false);
@@ -77,7 +77,6 @@ const EventDetailPage: React.FC = () => {
       return;
     }
 
-    // Point 2 : sélection de l’offre
     navigate(`/evenements/${id}/reserver`);
   };
 
@@ -93,7 +92,7 @@ const EventDetailPage: React.FC = () => {
     return (
       <div className="event-detail">
         <div className="event-detail__state event-detail__state--error">
-          {error ?? "Événement introuvable."}
+          {error ?? "Épreuve introuvable."}
         </div>
       </div>
     );
@@ -104,7 +103,7 @@ const EventDetailPage: React.FC = () => {
       <section className="event-detail__hero">
         <div className="event-detail__hero-inner">
           <nav className="event-detail__breadcrumbs">
-            <Link to="/evenements">Événements</Link> /{" "}
+            <Link to="/evenements">Épreuves</Link> /{" "}
             <span>{event.nom_evenement}</span>
           </nav>
 
@@ -114,9 +113,7 @@ const EventDetailPage: React.FC = () => {
               ` • ${formatTime(event.heure_evenement)}`}
           </div>
 
-          <h1 className="event-detail__title">
-            {event.nom_evenement}
-          </h1>
+          <h1 className="event-detail__title">{event.nom_evenement}</h1>
 
           <div className="event-detail__meta">
             {event.discipline && <span>{event.discipline}</span>}
@@ -129,8 +126,8 @@ const EventDetailPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="event-detail__content">
-        <div className="event-detail__content-inner">
+      <section className="event-detail__offers">
+        <div className="event-detail__offers-inner">
           <div className="event-detail__image-wrapper">
             <img
               src={event.image_url}

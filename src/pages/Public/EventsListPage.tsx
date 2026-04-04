@@ -43,6 +43,7 @@ const EventsListPage: React.FC = () => {
 
         const params: Record<string, string> = {};
         const q = searchParams.get("q");
+
         if (q) {
           params.search = q;
           setSearch(q);
@@ -136,7 +137,8 @@ const EventsListPage: React.FC = () => {
         <div className="events-page__hero-inner">
           <h1 className="events-page__title">Épreuves et événements</h1>
           <p className="events-page__subtitle">
-            Sélectionnez une épreuve olympique et réservez vos billets.
+            Parcourez la billetterie officielle et choisissez les épreuves qui vous
+            feront vibrer pendant les Jeux Olympiques.
           </p>
 
           <form className="events-page__search" onSubmit={handleSearchSubmit}>
@@ -156,9 +158,7 @@ const EventsListPage: React.FC = () => {
 
       <section className="events-page__content">
         <div className="events-page__inner">
-          {loading && (
-            <div className="events-page__state">Chargement…</div>
-          )}
+          {loading && <div className="events-page__state">Chargement…</div>}
 
           {error && (
             <div className="events-page__state events-page__state--error">
@@ -178,12 +178,10 @@ const EventsListPage: React.FC = () => {
                 <header className="event-card__header">
                   <div className="event-card__date">
                     {formatDate(event.date_evenement)}
-                    {formatTime(event) && ` • ${formatTime(event)}`}
+                    {formatTime(event) && ` · ${formatTime(event)}`}
                   </div>
 
-                  <h2 className="event-card__title">
-                    {event.nom_evenement}
-                  </h2>
+                  <h2 className="event-card__title">{event.nom_evenement}</h2>
 
                   {event.discipline && (
                     <div className="event-card__discipline">
