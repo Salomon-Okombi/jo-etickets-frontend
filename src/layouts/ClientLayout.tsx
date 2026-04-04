@@ -1,63 +1,27 @@
-import React from "react";
-import { Navigate, Outlet, Link } from "react-router-dom";
+/*//*import React from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
 
 export default function ClientLayout() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-  // Attente du chargement de la session
+  // Attente de l'initialisation de la session
   if (loading) {
-    return <div className="p-6">Chargement…</div>;
+    return <div>Chargement…</div>;
   }
 
-  // Non connecté → login
+  // Non authentifié → retour login avec mémorisation de la route
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Sécurité : un admin n’a rien à faire ici
+  // Un admin ne doit jamais rester dans l’espace client
   if (user.role === "ADMIN") {
     return <Navigate to="/admin" replace />;
   }
 
-  return (
-    <div className="client-layout">
-      {/* Header */}
-      <header className="client-header">
-        <div className="client-header__brand">
-          <Link to="/">JO e‑Tickets</Link>
-        </div>
-
-        <nav className="client-header__nav">
-          <Link to="/evenements">Événements</Link>
-          <Link to="/offres">Offres</Link>
-          <Link to="/panier">Panier</Link>
-          <Link to="/mon-espace/commandes">Mes commandes</Link>
-          <Link to="/mon-espace/billets">Mes billets</Link>
-        </nav>
-
-        <div className="client-header__actions">
-          <span className="client-header__user">
-            {user.username}
-          </span>
-          <button onClick={logout}>
-            Déconnexion
-          </button>
-        </div>
-      </header>
-
-      {/* Contenu */}
-      <main className="client-content">
-        <Outlet />
-      </main>
-
-      {/* Footer */}
-      <footer className="client-footer">
-        <p>
-          © 2026 JO e‑Tickets – Projet pédagogique
-        </p>
-      </footer>
-    </div>
-  );
+  // Client autorisé → affichage de la page enfant
+  return <Outlet />;
 }
-``
+``*/
