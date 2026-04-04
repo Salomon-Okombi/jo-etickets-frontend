@@ -1,19 +1,19 @@
 // src/api/events.api.ts
-import api  from "./axiosClient";
+import api from "./axiosClient";
 
-/* ------------------------------------------------------------------
-   🧱 Types
------------------------------------------------------------------- */
 export interface Event {
   id: number;
-  nom: string;
-  discipline_sportive: string;
-  date_evenement: string; // ISO (YYYY-MM-DD ou datetime selon ton modèle)
-  lieu_evenement: string;
-  description: string | null;
+  nom_evenement: string;
+  discipline: string;
+  date_evenement: string;
+  lieu: string;
+  description_courte: string;
+  description_longue: string;
+  image_url: string;
+  statut: "BROUILLON" | "PUBLIE" | "ARCHIVE";
 }
 
-export type CreateEventPayload = Omit<Event, "id">;
+export type CreateEventPayload = Omit<Event, "id" | "image_url">;
 export type UpdateEventPayload = Partial<CreateEventPayload>;
 
 export interface Paginated<T> {
@@ -23,51 +23,30 @@ export interface Paginated<T> {
   results: T[];
 }
 
-/* ------------------------------------------------------------------
-   ⚙️ Endpoints : /api/evenements/
-   - GET    /evenements/              -> listEvents
-   - GET    /evenements/:id/          -> getEvent
-   - POST   /evenements/              -> createEvent (auth admin)
-   - PUT    /evenements/:id/          -> replaceEvent (admin)
-   - PATCH  /evenements/:id/          -> updateEvent (admin)
-   - DELETE /evenements/:id/          -> deleteEvent (admin)
------------------------------------------------------------------- */
+/* ===== PUBLIC ===== */
 
-/** Liste paginée des événements (publique) */
-export async function listEvents(params?: {
-  page?: number;
-  search?: string;   // si tu ajoutes un SearchFilter côté DRF
-  ordering?: string; // si tu ajoutes OrderingFilter côté DRF
-}): Promise<Paginated<Event>> {
-  const { data } = await api.get<Paginated<Event>>("/evenements/", { params });
+export async function listEvents(params?: any): Promise<Paginated<Event>> {
+  const { data } = await api.get("/evenements/", { params });
   return data;
 }
 
-/** Détail d'un événement (public) */
 export async function getEvent(id: number): Promise<Event> {
-  const { data } = await api.get<Event>(`/evenements/${id}/`);
+  const { data } = await api.get(`/evenements/${id}/`);
   return data;
 }
 
-/** Création d'un événement (requiert un admin authentifié) */
+/* ===== ADMIN ===== */
+
 export async function createEvent(payload: CreateEventPayload): Promise<Event> {
-  const { data } = await api.post<Event>("/evenements/", payload);
+  const { data } = await api.post("/admin/evenements/", payload);
   return data;
 }
 
-/** Mise à jour complète (remplace tout l’objet — admin) */
-export async function replaceEvent(id: number, payload: CreateEventPayload): Promise<Event> {
-  const { data } = await api.put<Event>(`/evenements/${id}/`, payload);
-  return data;
-}
-
-/** Mise à jour partielle (modifie uniquement les champs transmis — admin) */
 export async function updateEvent(id: number, payload: UpdateEventPayload): Promise<Event> {
-  const { data } = await api.patch<Event>(`/evenements/${id}/`, payload);
+  const { data } = await api.patch(`/admin/evenements/${id}/`, payload);
   return data;
 }
 
-/** Suppression d'un événement (admin) */
 export async function deleteEvent(id: number): Promise<void> {
-  await api.delete(`/evenements/${id}/`);
+  await api.delete(`/admin/evenements/${id}/`);
 }

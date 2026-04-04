@@ -264,7 +264,7 @@ export default function OfferAdminEdit() {
                 </option>
                 {events.map((ev) => (
                   <option key={ev.id} value={ev.id}>
-                    #{ev.id} — {ev.nom}
+                    #{ev.id} — {ev.nom_evenement}
                   </option>
                 ))}
               </select>

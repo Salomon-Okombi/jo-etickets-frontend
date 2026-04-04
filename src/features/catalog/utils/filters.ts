@@ -49,10 +49,10 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
     // recherche texte
     if (searchNorm) {
       const haystack = [
-        evt.nom,
-        evt.discipline_sportive,
-        evt.lieu_evenement,
-        evt.description ?? "",
+        evt.nom_evenement,
+        evt.discipline,
+        evt.lieu,
+        evt.description_courte ?? "",
       ]
         .map(normalize)
         .join(" ");
@@ -63,7 +63,7 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
     }
 
     // discipline
-    if (discipline && normalize(evt.discipline_sportive) !== normalize(discipline)) {
+    if (discipline && normalize(evt.discipline) !== normalize(discipline)) {
       return false;
     }
 
@@ -148,9 +148,9 @@ export function sortEvents(events: Event[], sort: EventSortKey): Event[] {
     case "date-desc":
       return copy.sort((a, b) => b.date_evenement.localeCompare(a.date_evenement));
     case "name-asc":
-      return copy.sort((a, b) => a.nom.localeCompare(b.nom));
+      return copy.sort((a, b) => a.nom_evenement.localeCompare(b.nom_evenement));
     case "name-desc":
-      return copy.sort((a, b) => b.nom.localeCompare(a.nom));
+      return copy.sort((a, b) => b.nom_evenement.localeCompare(a.nom_evenement));
     default:
       return copy;
   }

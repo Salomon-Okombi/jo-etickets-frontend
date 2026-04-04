@@ -1,29 +1,30 @@
 // src/pages/Admin/Events/EventAdminCreate.tsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import  api  from "@/api/axiosClient";
+import api from "@/api/axiosClient";
 import "@/styles/admin.css";
 
-type EventStatus = "A_VENIR" | "EN_COURS" | "TERMINE";
+type EventStatus = "BROUILLON" | "PUBLIE" | "ARCHIVE";
 
 export default function EventAdminCreate() {
   const navigate = useNavigate();
 
-  const [nom, setNom] = useState("");
-  const [disciplineSportive, setDisciplineSportive] = useState("");
-  const [dateEvenement, setDateEvenement] = useState(""); // YYYY-MM-DD (DateField)
-  const [lieuEvenement, setLieuEvenement] = useState("");
-  const [description, setDescription] = useState("");
-  const [statut, setStatut] = useState<EventStatus>("A_VENIR");
+  const [nomEvenement, setNomEvenement] = useState("");
+  const [discipline, setDiscipline] = useState("");
+  const [dateEvenement, setDateEvenement] = useState("");
+  const [lieu, setLieu] = useState("");
+  const [descriptionCourte, setDescriptionCourte] = useState("");
+  const [descriptionLongue, setDescriptionLongue] = useState("");
+  const [statut, setStatut] = useState<EventStatus>("BROUILLON");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function validate(): string | null {
-    if (!nom.trim()) return "Le nom de l'événement est obligatoire.";
-    if (!disciplineSportive.trim()) return "La discipline sportive est obligatoire.";
-    if (!dateEvenement) return "La date de l'événement est obligatoire.";
-    if (!lieuEvenement.trim()) return "Le lieu de l'événement est obligatoire.";
+    if (!nomEvenement.trim()) return "Le nom de l’événement est obligatoire.";
+    if (!discipline.trim()) return "La discipline est obligatoire.";
+    if (!dateEvenement) return "La date est obligatoire.";
+    if (!lieu.trim()) return "Le lieu est obligatoire.";
     return null;
   }
 
@@ -40,36 +41,28 @@ export default function EventAdminCreate() {
     try {
       setSubmitting(true);
 
-      await api.post("/evenements/", {
-        nom: nom.trim(),
-        discipline_sportive: disciplineSportive.trim(),
-        date_evenement: dateEvenement, // "YYYY-MM-DD"
-        lieu_evenement: lieuEvenement.trim(),
-        description: description.trim() ? description.trim() : null,
-        statut, // ✅ ajout du statut (A_VENIR/EN_COURS/TERMINE)
+      await api.post("/admin/evenements/", {
+        nom_evenement: nomEvenement.trim(),
+        discipline: discipline.trim(),
+        date_evenement: dateEvenement,
+        lieu: lieu.trim(),
+        description_courte: descriptionCourte.trim(),
+        description_longue: descriptionLongue.trim(),
+        statut,
       });
 
       navigate("/admin/evenements");
     } catch (err: any) {
-      console.error("EventAdminCreate error:", err);
-
       const status = err?.response?.status;
-      if (status === 400) {
-        // DRF renvoie souvent un objet { field: ["message"] }
-        const data = err?.response?.data;
-        if (data && typeof data === "object") {
-          const firstKey = Object.keys(data)[0];
-          const msg = firstKey ? `${firstKey}: ${Array.isArray(data[firstKey]) ? data[firstKey][0] : String(data[firstKey])}` : "Données invalides.";
-          setError(`Erreur (400) — ${msg}`);
-        } else {
-          setError("Erreur (400) — Données invalides.");
-        }
+      const data = err?.response?.data;
+
+      if (status === 400 && data && typeof data === "object") {
+        const key = Object.keys(data)[0];
+        setError(`${key} : ${data[key][0]}`);
       } else if (status === 401) {
-        setError("Non authentifié (401). Connecte-toi.");
+        setError("Non authentifié.");
       } else if (status === 403) {
-        setError("Accès refusé (403). Admin requis.");
-      } else if (status === 404) {
-        setError("Endpoint introuvable (404). Vérifie /api/evenements/.");
+        setError("Accès réservé aux administrateurs.");
       } else {
         setError("Erreur lors de la création de l’événement.");
       }
@@ -80,120 +73,78 @@ export default function EventAdminCreate() {
 
   return (
     <div className="admin-page">
-      {/* Header */}
-      <div style={{ marginBottom: "1.2rem" }}>
-        <div className="admin-title">Nouvel événement</div>
-        <div className="admin-subtitle">
-          Crée une nouvelle épreuve (nom, discipline, date, lieu). Elle sera ensuite visible et associable à des offres.
-        </div>
+      <div className="admin-title">Nouvel événement</div>
+      <div className="admin-subtitle">
+        Création d’une épreuve affichée dans la boutique événements.
       </div>
 
-      {/* Actions header */}
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
-        <Link className="admin-btn admin-btn--ghost" to="/admin/evenements">
-          ← Retour à la liste
-        </Link>
-      </div>
+      <Link className="admin-btn admin-btn--ghost" to="/admin/evenements">
+        ← Retour à la liste
+      </Link>
 
-      {/* Form */}
-      <div className="admin-table-wrap" style={{ marginTop: "1rem", padding: "1rem" }}>
-        {error ? (
-          <div className="admin-alert" role="alert" style={{ marginBottom: "0.9rem" }}>
+      <div className="admin-table-wrap" style={{ marginTop: 16 }}>
+        {error && (
+          <div className="admin-alert" style={{ marginBottom: 12 }}>
             {error}
           </div>
-        ) : null}
+        )}
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "0.9rem", maxWidth: 760 }}>
-          {/* Row 1 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-            <div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
-                Nom de l’événement *
-              </div>
-              <input
-                className="admin-input"
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                placeholder="Finale 100m hommes"
-              />
-            </div>
+        <form onSubmit={handleSubmit} style={{ maxWidth: 760, display: "grid", gap: 12 }}>
+          <input
+            className="admin-input"
+            placeholder="Nom de l’événement"
+            value={nomEvenement}
+            onChange={(e) => setNomEvenement(e.target.value)}
+          />
 
-            <div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
-                Discipline sportive *
-              </div>
-              <input
-                className="admin-input"
-                value={disciplineSportive}
-                onChange={(e) => setDisciplineSportive(e.target.value)}
-                placeholder="Athlétisme, Natation..."
-              />
-            </div>
-          </div>
+          <input
+            className="admin-input"
+            placeholder="Discipline"
+            value={discipline}
+            onChange={(e) => setDiscipline(e.target.value)}
+          />
 
-          {/* Row 2 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-            <div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
-                Date de l’événement *
-              </div>
-              <input
-                className="admin-input"
-                type="date"
-                value={dateEvenement}
-                onChange={(e) => setDateEvenement(e.target.value)}
-              />
-            </div>
+          <input
+            className="admin-input"
+            type="date"
+            value={dateEvenement}
+            onChange={(e) => setDateEvenement(e.target.value)}
+          />
 
-            <div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
-                Statut *
-              </div>
-              <select className="admin-select" value={statut} onChange={(e) => setStatut(e.target.value as EventStatus)}>
-                <option value="A_VENIR">A_VENIR</option>
-                <option value="EN_COURS">EN_COURS</option>
-                <option value="TERMINE">TERMINE</option>
-              </select>
-            </div>
-          </div>
+          <input
+            className="admin-input"
+            placeholder="Lieu"
+            value={lieu}
+            onChange={(e) => setLieu(e.target.value)}
+          />
 
-          {/* Row 3 */}
-          <div>
-            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
-              Lieu *
-            </div>
-            <input
-              className="admin-input"
-              value={lieuEvenement}
-              onChange={(e) => setLieuEvenement(e.target.value)}
-              placeholder="Stade de France..."
-            />
-          </div>
+          <textarea
+            className="admin-input"
+            placeholder="Description courte (boutique)"
+            value={descriptionCourte}
+            onChange={(e) => setDescriptionCourte(e.target.value)}
+          />
 
-          {/* Description */}
-          <div>
-            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
-              Description (optionnelle)
-            </div>
-            <textarea
-              className="admin-input"
-              style={{ borderRadius: 16, minHeight: 120 }}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Infos pratiques, contexte de l’épreuve, etc."
-            />
-          </div>
+          <textarea
+            className="admin-input"
+            placeholder="Description longue (page détail)"
+            value={descriptionLongue}
+            onChange={(e) => setDescriptionLongue(e.target.value)}
+          />
 
-          {/* Buttons */}
-          <div style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end", marginTop: "0.4rem" }}>
-            <Link className="admin-btn admin-btn--ghost" to="/admin/evenements">
-              Annuler
-            </Link>
+          <select
+            className="admin-select"
+            value={statut}
+            onChange={(e) => setStatut(e.target.value as EventStatus)}
+          >
+            <option value="BROUILLON">Brouillon</option>
+            <option value="PUBLIE">Publié</option>
+            <option value="ARCHIVE">Archivé</option>
+          </select>
 
-            <button className="admin-btn" type="submit" disabled={submitting}>
-              {submitting ? "Enregistrement…" : "Créer l’événement"}
-            </button>
-          </div>
+          <button className="admin-btn" type="submit" disabled={submitting}>
+            {submitting ? "Création…" : "Créer l’événement"}
+          </button>
         </form>
       </div>
     </div>
