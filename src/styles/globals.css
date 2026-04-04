@@ -1925,3 +1925,215 @@ body,
     padding-inline: 1rem;
   }
 }
+
+
+/* ============================================================
+   Page événements – structure globale
+============================================================ */
+
+.events-page {
+  background-color: #f6f8fb;
+  min-height: 100vh;
+}
+
+/* ============================================================
+   Hero / En-tête de page
+============================================================ */
+
+.events-hero {
+  background: linear-gradient(135deg, #1f2b4d 0%, #2f3f75 100%);
+  color: #ffffff;
+  padding: 3rem 1.5rem;
+}
+
+.events-hero__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.events-hero__title {
+  font-size: 2.4rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+
+.events-hero__subtitle {
+  font-size: 1rem;
+  max-width: 520px;
+  opacity: 0.9;
+  margin-bottom: 1.8rem;
+}
+
+/* ============================================================
+   Barre de recherche
+============================================================ */
+
+.events-search {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 460px;
+}
+
+.events-search input {
+  flex: 1;
+  padding: 0.65rem 0.8rem;
+  border-radius: 6px;
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+}
+
+.events-search button {
+  background-color: #ffffff;
+  color: #1f2b4d;
+  border: none;
+  padding: 0.65rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.events-search button:hover {
+  background-color: #eaeef6;
+}
+
+/* ============================================================
+   Contenu principal
+============================================================ */
+
+.events-content {
+  max-width: 1200px;
+  margin: 2.5rem auto;
+  padding: 0 1.5rem;
+}
+
+/* ============================================================
+   États (loading, erreur, vide)
+============================================================ */
+
+.events-state {
+  text-align: center;
+  padding: 2.5rem 0;
+  color: #555555;
+  font-size: 0.95rem;
+}
+
+.events-error {
+  background-color: #fff2f2;
+  border: 1px solid #f4c7c7;
+  color: #8a1f1f;
+  padding: 0.9rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+/* ============================================================
+   Grille d’événements
+============================================================ */
+
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* ============================================================
+   Carte événement
+============================================================ */
+
+.event-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 1.3rem 1.4rem;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* En-tête de carte */
+
+.event-card__header {
+  margin-bottom: 0.8rem;
+}
+
+.event-card__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+  color: #1f2b4d;
+}
+
+.event-card__meta {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: #6b6b6b;
+}
+
+/* Description */
+
+.event-card__description {
+  font-size: 0.95rem;
+  color: #444444;
+  line-height: 1.45;
+  margin: 0.9rem 0 1.1rem 0;
+}
+
+/* Footer / actions */
+
+.event-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.event-card__link {
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: #2f3f75;
+}
+
+.event-card__link:hover {
+  text-decoration: underline;
+}
+
+.event-card__button {
+  background-color: #2f3f75;
+  color: #ffffff;
+  border: none;
+  padding: 0.55rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.event-card__button:hover {
+  background-color: #24315c;
+}
+
+.event-card__button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Responsive léger
+============================================================ */
+
+@media (max-width: 600px) {
+  .events-hero__title {
+    font-size: 1.9rem;
+  }
+
+  .events-search {
+    flex-direction: column;
+  }
+
+  .event-card {
+    padding: 1.1rem;
+  }
+}

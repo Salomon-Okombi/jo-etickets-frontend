@@ -5,7 +5,7 @@ import type { Offer } from "@/types/offers";
 import { useAuth } from "@/hooks/useAuth";
 
 /* ============================================================
-   Types locaux
+   Types
 ============================================================ */
 
 type EventItem = {
@@ -44,7 +44,7 @@ const EventsListPage: React.FC = () => {
 
   /* ============================
      Chargement des événements
-  ============================= */
+  ============================ */
 
   useEffect(() => {
     let mounted = true;
@@ -55,10 +55,11 @@ const EventsListPage: React.FC = () => {
         setError(null);
 
         const params: Record<string, string> = {};
-        const searchValue = searchParams.get("q");
-        if (searchValue) {
-          params.search = searchValue;
-          setSearch(searchValue);
+        const q = searchParams.get("q");
+
+        if (q) {
+          params.search = q;
+          setSearch(q);
         }
 
         const { data } = await api.get<Paginated<EventItem> | EventItem[]>(
@@ -68,11 +69,7 @@ const EventsListPage: React.FC = () => {
 
         if (!mounted) return;
 
-        if (Array.isArray(data)) {
-          setEvents(data);
-        } else {
-          setEvents(data.results);
-        }
+        setEvents(Array.isArray(data) ? data : data.results);
       } catch {
         if (mounted) {
           setError("Impossible de charger les événements pour le moment.");
@@ -90,7 +87,7 @@ const EventsListPage: React.FC = () => {
 
   /* ============================
      Helpers
-  ============================= */
+  ============================ */
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,8 +121,8 @@ const EventsListPage: React.FC = () => {
   };
 
   const formatPrice = (raw: Offer["prix"]) => {
-    const value = typeof raw === "string" ? Number(raw) : Number(raw ?? 0);
-    return value.toLocaleString("fr-FR", {
+    const v = typeof raw === "string" ? Number(raw) : Number(raw ?? 0);
+    return v.toLocaleString("fr-FR", {
       style: "currency",
       currency: "EUR",
     });
@@ -133,13 +130,11 @@ const EventsListPage: React.FC = () => {
 
   /* ============================
      Ajout au panier
-  ============================= */
+  ============================ */
 
   const handleAddToCart = async (event: EventItem) => {
     if (!isAuthenticated) {
-      navigate("/login", {
-        state: { from: "/evenements", eventId: event.id },
-      });
+      navigate("/login", { state: { from: "/evenements" } });
       return;
     }
 
@@ -154,24 +149,18 @@ const EventsListPage: React.FC = () => {
       const offers = Array.isArray(data) ? data : data.results;
 
       if (!offers.length) {
-        alert("Aucune offre disponible pour cet événement.");
+        setError("Aucune offre disponible pour cet événement.");
         return;
       }
 
-      const bestOffer = offers.reduce((min, current) => {
-        const pMin = Number(min.prix ?? 0);
-        const pCur = Number(current.prix ?? 0);
-        return pCur < pMin ? current : min;
-      });
+      const bestOffer = offers.reduce((min, cur) =>
+        Number(cur.prix) < Number(min.prix) ? cur : min
+      );
 
       await api.post("/paniers/add/", {
         offre: bestOffer.id,
         quantite: 1,
       });
-
-      alert(
-        `Offre ajoutée au panier (à partir de ${formatPrice(bestOffer.prix)}).`
-      );
     } catch {
       setError("Impossible d’ajouter une offre au panier.");
     } finally {
@@ -181,18 +170,22 @@ const EventsListPage: React.FC = () => {
 
   /* ============================
      Render
-  ============================= */
+  ============================ */
 
   return (
     <div className="events-page">
-      <section className="events-page__hero">
-        <div className="events-page__hero-inner">
-          <h1 className="events-page__title">Épreuves & événements</h1>
+      <section className="events-hero">
+        <div className="events-hero__inner">
+          <h1 className="events-hero__title">Épreuves olympiques</h1>
 
-          <form className="events-page__search" onSubmit={handleSearchSubmit}>
+          <p className="events-hero__subtitle">
+            Sélectionnez une épreuve et réservez vos billets en toute simplicité.
+          </p>
+
+          <form className="events-search" onSubmit={handleSearchSubmit}>
             <input
               type="text"
-              placeholder="Rechercher une épreuve…"
+              placeholder="Rechercher une discipline ou une épreuve"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -201,29 +194,44 @@ const EventsListPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="events-page__content">
-        {loading && <p>Chargement…</p>}
-        {error && <p>{error}</p>}
+      <section className="events-content">
+        {loading && <div className="events-state">Chargement des événements…</div>}
+
+        {error && <div className="events-error">{error}</div>}
 
         {!loading && !error && events.length === 0 && (
-          <p>Aucune épreuve disponible.</p>
+          <div className="events-state">Aucune épreuve disponible.</div>
         )}
 
-        <div className="events-page__grid">
+        <div className="events-grid">
           {events.map((event) => (
             <article key={event.id} className="event-card">
-              <h2>{event.nom_evenement}</h2>
-              <p>
-                {formatDate(event.date_evenement)}
-                {formatTime(event) && ` · ${formatTime(event)}`}
-              </p>
+              <header className="event-card__header">
+                <h2 className="event-card__title">
+                  {event.nom_evenement}
+                </h2>
+                <div className="event-card__meta">
+                  {formatDate(event.date_evenement)}
+                  {formatTime(event) && ` · ${formatTime(event)}`}
+                </div>
+              </header>
 
-              <div className="event-card__actions">
-                <Link to={`/evenements/${event.id}`}>
-                  Détails de l’épreuve
+              {event.description && (
+                <p className="event-card__description">
+                  {event.description}
+                </p>
+              )}
+
+              <footer className="event-card__footer">
+                <Link
+                  to={`/evenements/${event.id}`}
+                  className="event-card__link"
+                >
+                  Voir les détails
                 </Link>
 
                 <button
+                  className="event-card__button"
                   onClick={() => handleAddToCart(event)}
                   disabled={addingId === event.id}
                 >
@@ -231,7 +239,7 @@ const EventsListPage: React.FC = () => {
                     ? "Ajout en cours…"
                     : "Ajouter au panier"}
                 </button>
-              </div>
+              </footer>
             </article>
           ))}
         </div>
