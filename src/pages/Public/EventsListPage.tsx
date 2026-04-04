@@ -7,7 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 type EventItem = {
   id: number;
   nom_evenement: string;
-  description: string | null;
+  description_courte: string;
+  image_url: string;
   lieu: string;
   date_evenement: string;
   heure_evenement?: string | null;
@@ -55,7 +56,9 @@ const EventsListPage: React.FC = () => {
         if (!mounted) return;
         setEvents(Array.isArray(data) ? data : data.results);
       } catch {
-        if (mounted) setError("Impossible de charger les épreuves.");
+        if (mounted) {
+          setError("Impossible de charger les épreuves.");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -69,7 +72,9 @@ const EventsListPage: React.FC = () => {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    search.trim() ? setSearchParams({ q: search.trim() }) : setSearchParams({});
+    search.trim()
+      ? setSearchParams({ q: search.trim() })
+      : setSearchParams({});
   };
 
   const formatDate = (iso: string) =>
@@ -85,7 +90,10 @@ const EventsListPage: React.FC = () => {
     const [h, m] = event.heure_evenement.split(":");
     const d = new Date();
     d.setHours(Number(h), Number(m || 0));
-    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const handleAddToCart = async (event: EventItem) => {
@@ -96,6 +104,7 @@ const EventsListPage: React.FC = () => {
 
     try {
       setAddingId(event.id);
+
       const { data } = await api.get<Paginated<Offer> | Offer[]>("/offres/", {
         params: { evenement: event.id, statut: "DISPONIBLE" },
       });
@@ -110,7 +119,10 @@ const EventsListPage: React.FC = () => {
         Number(b.prix) < Number(a.prix) ? b : a
       );
 
-      await api.post("/paniers/add/", { offre: bestOffer.id, quantite: 1 });
+      await api.post("/paniers/add/", {
+        offre: bestOffer.id,
+        quantite: 1,
+      });
     } catch {
       setError("Impossible d’ajouter l’offre au panier.");
     } finally {
@@ -124,7 +136,7 @@ const EventsListPage: React.FC = () => {
         <div className="events-page__hero-inner">
           <h1 className="events-page__title">Épreuves et événements</h1>
           <p className="events-page__subtitle">
-            Sélectionnez une épreuve olympique et accédez aux offres disponibles.
+            Sélectionnez une épreuve olympique et réservez vos billets.
           </p>
 
           <form className="events-page__search" onSubmit={handleSearchSubmit}>
@@ -144,7 +156,10 @@ const EventsListPage: React.FC = () => {
 
       <section className="events-page__content">
         <div className="events-page__inner">
-          {loading && <div className="events-page__state">Chargement…</div>}
+          {loading && (
+            <div className="events-page__state">Chargement…</div>
+          )}
+
           {error && (
             <div className="events-page__state events-page__state--error">
               {error}
@@ -154,12 +169,22 @@ const EventsListPage: React.FC = () => {
           <div className="events-page__grid">
             {events.map((event) => (
               <article key={event.id} className="event-card">
+                <img
+                  src={event.image_url}
+                  alt={event.nom_evenement}
+                  className="event-card__image"
+                />
+
                 <header className="event-card__header">
                   <div className="event-card__date">
                     {formatDate(event.date_evenement)}
                     {formatTime(event) && ` • ${formatTime(event)}`}
                   </div>
-                  <h2 className="event-card__title">{event.nom_evenement}</h2>
+
+                  <h2 className="event-card__title">
+                    {event.nom_evenement}
+                  </h2>
+
                   {event.discipline && (
                     <div className="event-card__discipline">
                       {event.discipline}
@@ -167,18 +192,16 @@ const EventsListPage: React.FC = () => {
                   )}
                 </header>
 
-                {event.description && (
-                  <p className="event-card__description">
-                    {event.description}
-                  </p>
-                )}
+                <p className="event-card__description">
+                  {event.description_courte}
+                </p>
 
                 <div className="event-card__actions">
                   <Link
                     to={`/evenements/${event.id}`}
                     className="event-card__link"
                   >
-                    Voir le détail
+                    Plus de détails
                   </Link>
 
                   <button
