@@ -4,9 +4,9 @@ import  api  from "@/api/axiosClient";
 
 export interface AdminEvent {
   id: number;
-  nom: string;
+  nom_evenement: string;
   date_evenement: string;
-  lieu_evenement: string | null;
+  lieu: string | null;
 }
 
 export interface Paginated<T> {

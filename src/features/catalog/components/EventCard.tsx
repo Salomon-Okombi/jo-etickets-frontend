@@ -17,8 +17,8 @@ export default function EventCard({ event, className, showCTA = true }: Props) {
     >
       <div className="card-body gap-3">
         <div className="flex items-start justify-between">
-          <h3 className="card-title text-base sm:text-lg">{event.nom}</h3>
-          <Badge>{event.discipline_sportive}</Badge>
+          <h3 className="card-title text-base sm:text-lg">{event.discipline}</h3>
+          <Badge>{event.discipline}</Badge>
         </div>
 
         <div className="text-sm opacity-80 space-y-1">
@@ -33,18 +33,18 @@ export default function EventCard({ event, className, showCTA = true }: Props) {
             })}
           </p>
           <p>
-            <span className="font-medium">Lieu :</span> {event.lieu_evenement}
+            <span className="font-medium">Lieu :</span> {event.lieu}
           </p>
         </div>
 
-        {event.description && (
-          <p className="text-sm line-clamp-3 opacity-90">{event.description}</p>
+        {event.description_courte && (
+          <p className="text-sm line-clamp-3 opacity-90">{event.description_courte}</p>
         )}
 
         {showCTA && (
           <div className="card-actions justify-end">
             <Link to={`/events/${event.id}`}>
-              <Button variant="primary" aria-label={`Voir l'événement ${event.nom}`}>
+              <Button variant="primary" aria-label={`Voir l'événement ${event.nom_evenement}`}>
                 Voir l’événement
               </Button>
             </Link>

@@ -1,15 +1,36 @@
-export type EventStatus = "A_VENIR" | "EN_COURS" | "TERMINE" | string;
+/* =========================================================
+   Statuts événement (aligné backend)
+========================================================= */
+
+export type EventStatus = "BROUILLON" | "PUBLIE" | "ARCHIVE";
+
+/* =========================================================
+   Modèle Event (API publique + admin)
+========================================================= */
 
 export interface Event {
   id: number;
-  nom: string;
-  discipline_sportive: string;
-  date_evenement: string;      // ISO "YYYY-MM-DD"
-  lieu_evenement: string;
-  description?: string | null;
+
+  nom_evenement: string;
+  discipline: string;
+  lieu: string;
+
+  date_evenement: string;          // ISO : "YYYY-MM-DD"
+  heure_evenement?: string | null; // optionnel
+
+  description_courte: string;
+  description_longue: string;
+
+  image_url: string;
+
   statut: EventStatus;
-  date_creation?: string;      // ISO datetime
+
+  date_creation?: string;          // ISO datetime
 }
+
+/* =========================================================
+   Pagination générique DRF
+========================================================= */
 
 export interface Paginated<T> {
   count: number;
@@ -18,6 +39,10 @@ export interface Paginated<T> {
   results: T[];
 }
 
+/* =========================================================
+   Paramètres liste événements
+========================================================= */
+
 export interface EventListParams {
   page?: number;
   page_size?: number;
@@ -25,5 +50,21 @@ export interface EventListParams {
   ordering?: string;
 }
 
-export type EventCreatePayload = Omit<Event, "id" | "date_creation">;
+/* =========================================================
+   Payloads admin
+========================================================= */
+
+// Création (admin)
+export type EventCreatePayload = {
+  nom_evenement: string;
+  discipline: string;
+  lieu: string;
+  date_evenement: string;
+  heure_evenement?: string | null;
+  description_courte: string;
+  description_longue: string;
+  statut: EventStatus;
+};
+
+// Mise à jour partielle (admin)
 export type EventUpdatePayload = Partial<EventCreatePayload>;
