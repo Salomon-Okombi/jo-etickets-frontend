@@ -39,7 +39,7 @@ function renderExtraFields(user: Record<string, any>) {
     "id",
     "username",
     "email",
-    "type_compte",
+    "role",
     "statut",
     "date_creation",
   ]);
@@ -185,7 +185,7 @@ export default function UsersAdminList() {
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Utilisateurs</div>
         <div className="admin-subtitle">
-          Liste admin : username, email, type_compte, statut, date_creation (+ champs supplémentaires si présents).
+          Liste admin : username, email, role, statut, date_creation (+ champs supplémentaires si présents).
         </div>
       </div>
 
@@ -266,9 +266,9 @@ export default function UsersAdminList() {
                   <th className="admin-td-center">Type</th>
                   <th className="admin-td-center">Statut</th>
                   <th>Date création</th>
-                  {/* ✅ champs supplémentaires */}
+                  {/* champs supplémentaires */}
                   <th>Autres champs</th>
-                  {/* ✅ actions */}
+                  {/* actions */}
                   <th className="admin-td-right">Actions</th>
                 </tr>
               </thead>
@@ -281,7 +281,7 @@ export default function UsersAdminList() {
                     <td>{u.email || "—"}</td>
 
                     <td className="admin-td-center">
-                      <span className={badgeType(u.type_compte)}>{u.type_compte ?? "—"}</span>
+                      <span className={badgeType(u.role)}>{u.role ?? "—"}</span>
                     </td>
 
                     <td className="admin-td-center">

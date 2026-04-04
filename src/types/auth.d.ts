@@ -25,8 +25,8 @@ export interface User {
   username: string;
   email: string;
 
-  // Champs renvoyés par ton backend (via UtilisateurSerializer)
-  type_compte?: "CLIENT" | "ADMIN" | "VALIDATEUR";
+  // Champs renvoyés par le backend (via UtilisateurSerializer)
+  role?: "CLIENT" | "ADMIN" | "VALIDATEUR" |"ADMINISTRATEUR" | "UTILISATEUR";
   statut?: "ACTIF" | "INACTIF" | "SUSPENDU";
   date_creation?: string;
 

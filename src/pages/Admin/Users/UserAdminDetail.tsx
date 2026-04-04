@@ -13,7 +13,7 @@ export default function UserAdminDetail() {
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [type_compte, setTypeCompte] = useState<string>("CLIENT");
+  const [role, setTypeCompte] = useState<string>("CLIENT");
   const [statut, setStatut] = useState<string>("ACTIF");
   const [password, setPassword] = useState(""); // optionnel
 
@@ -36,7 +36,7 @@ export default function UserAdminDetail() {
         setUser(data);
         setUsername(data.username ?? "");
         setEmail(data.email ?? "");
-        setTypeCompte(data.type_compte ?? "CLIENT");
+        setTypeCompte(data.role ?? "UTILISATEUR");
         setStatut(data.statut ?? "ACTIF");
       } catch (err: any) {
         const status = err?.response?.status;
@@ -64,7 +64,7 @@ export default function UserAdminDetail() {
       const payload: any = {
         username,
         email,
-        type_compte,
+        role,
         statut,
       };
       if (password.trim()) payload.password = password.trim();
@@ -137,7 +137,7 @@ export default function UserAdminDetail() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
             <div>
               <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>Type compte</div>
-              <select className="admin-select" value={type_compte} onChange={(e) => setTypeCompte(e.target.value)}>
+              <select className="admin-select" value={role} onChange={(e) => setTypeCompte(e.target.value)}>
                 <option value="CLIENT">CLIENT</option>
                 <option value="ADMIN">ADMIN</option>
               </select>

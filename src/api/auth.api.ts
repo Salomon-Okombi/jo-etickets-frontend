@@ -7,13 +7,13 @@ export interface JwtPair {
   refresh: string;
 }
 
-export type AccountType = "CLIENT" | "ADMIN";
+export type AccountType = "CLIENT" | "ADMIN" | "ADMINISTRATEUR" | "UTILISATEUR";
 
 export interface RegisterPayload {
   username: string;
   email: string;
   password: string;
-  type_compte: AccountType;
+  role: AccountType;
 }
 
 // Je garde la même clé que axiosClient.ts (AUTH_STORAGE_KEY = "auth_tokens")

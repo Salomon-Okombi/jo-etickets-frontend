@@ -8,7 +8,7 @@ export interface AdminUser {
   email: string;
   is_staff: boolean;
   is_active: boolean;
-  type_compte?: string;
+  role?: string;
   statut?: string;
   derniere_connexion?: string | null;
 }

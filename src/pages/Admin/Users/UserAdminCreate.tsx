@@ -8,7 +8,7 @@ export default function UserAdminCreate() {
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [type_compte, setTypeCompte] = useState<"CLIENT" | "ADMIN">("CLIENT");
+  const [role, setTypeCompte] = useState<"CLIENT" | "ADMIN">("CLIENT");
   const [statut, setStatut] = useState<"ACTIF" | "INACTIF">("ACTIF");
   const [password, setPassword] = useState("");
 
@@ -26,7 +26,7 @@ export default function UserAdminCreate() {
 
     try {
       setLoading(true);
-      await createUser({ username, email, password, type_compte });
+      await createUser({ username, email, password, role });
       // statut est géré dans serializer admin create (si tu veux l’envoyer, ajoute dans payload type)
       // Ici on le met en update après création si besoin (optionnel)
 
@@ -47,7 +47,7 @@ export default function UserAdminCreate() {
     <div className="admin-page">
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Créer un utilisateur</div>
-        <div className="admin-subtitle">Création admin (username, email, type_compte, statut, mot de passe).</div>
+        <div className="admin-subtitle">Création admin (username, email, role, statut, mot de passe).</div>
       </div>
 
       {error ? <div className="admin-alert" role="alert">{error}</div> : null}
@@ -72,7 +72,7 @@ export default function UserAdminCreate() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
             <div>
               <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>Type compte</div>
-              <select className="admin-select" value={type_compte} onChange={(e) => setTypeCompte(e.target.value as any)}>
+              <select className="admin-select" value={role} onChange={(e) => setTypeCompte(e.target.value as any)}>
                 <option value="CLIENT">CLIENT</option>
                 <option value="ADMIN">ADMIN</option>
               </select>

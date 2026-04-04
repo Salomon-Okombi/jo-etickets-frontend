@@ -14,12 +14,12 @@ interface AuthContextType {
   logout: () => void;
 }
 
-// ✅ Export nommé du contexte
+//  Export nommé du contexte
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
 
-// ✅ Export par défaut du provider
+//  Export par défaut du provider
 const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

@@ -4,7 +4,7 @@ import useAuth from "@/hooks/useAuth";
 import NavCartButton from "@/components/common/NavCartButton";
 
 function isAdminUser(profile: any): boolean {
-  return profile?.type_compte === "ADMIN" || profile?.is_staff === true || profile?.is_superuser === true;
+  return profile?.role === "ADMIN" || profile?.is_staff === true || profile?.is_superuser === true;
 }
 
 const MainHeader: React.FC = () => {

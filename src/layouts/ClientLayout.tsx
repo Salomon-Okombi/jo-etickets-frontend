@@ -1,82 +1,63 @@
-//header client (panier, profil)
 import React from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Navigate, Outlet, Link } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
 
 export default function ClientLayout() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
+
+  // Attente du chargement de la session
+  if (loading) {
+    return <div className="p-6">Chargement…</div>;
+  }
+
+  // Non connecté → login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Sécurité : un admin n’a rien à faire ici
+  if (user.role === "ADMIN") {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* 🌐 Navbar */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
-          <NavLink to="/" className="text-xl font-semibold text-indigo-600">
-            🎫 JO e-Ticket
-          </NavLink>
+    <div className="client-layout">
+      {/* Header */}
+      <header className="client-header">
+        <div className="client-header__brand">
+          <Link to="/">JO e‑Tickets</Link>
+        </div>
 
-          <nav className="space-x-4">
-            <NavLink
-              to="/events"
-              className={({ isActive }) =>
-                `text-gray-700 hover:text-indigo-600 ${isActive ? "font-semibold" : ""}`
-              }
-            >
-              Événements
-            </NavLink>
-            <NavLink
-              to="/offers"
-              className={({ isActive }) =>
-                `text-gray-700 hover:text-indigo-600 ${isActive ? "font-semibold" : ""}`
-              }
-            >
-              Offres
-            </NavLink>
-            <NavLink
-              to="/cart"
-              className={({ isActive }) =>
-                `text-gray-700 hover:text-indigo-600 ${isActive ? "font-semibold" : ""}`
-              }
-            >
-              Panier
-            </NavLink>
-            <NavLink
-              to="/orders"
-              className={({ isActive }) =>
-                `text-gray-700 hover:text-indigo-600 ${isActive ? "font-semibold" : ""}`
-              }
-            >
-              Mes commandes
-            </NavLink>
-          </nav>
+        <nav className="client-header__nav">
+          <Link to="/evenements">Événements</Link>
+          <Link to="/offres">Offres</Link>
+          <Link to="/panier">Panier</Link>
+          <Link to="/mon-espace/commandes">Mes commandes</Link>
+          <Link to="/mon-espace/billets">Mes billets</Link>
+        </nav>
 
-          {user ? (
-            <button
-              onClick={logout}
-              className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600"
-            >
-              Déconnexion
-            </button>
-          ) : (
-            <NavLink
-              to="/login"
-              className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
-            >
-              Connexion
-            </NavLink>
-          )}
+        <div className="client-header__actions">
+          <span className="client-header__user">
+            {user.username}
+          </span>
+          <button onClick={logout}>
+            Déconnexion
+          </button>
         </div>
       </header>
 
-      {/* Contenu principal */}
-      <main className="flex-1 bg-gray-50 p-6">
+      {/* Contenu */}
+      <main className="client-content">
         <Outlet />
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-100 border-t border-gray-200 py-3 text-center text-sm text-gray-500">
-        © {new Date().getFullYear()} JO e-Ticket — Tous droits réservés.
+      <footer className="client-footer">
+        <p>
+          © 2026 JO e‑Tickets – Projet pédagogique
+        </p>
       </footer>
     </div>
   );
 }
+``

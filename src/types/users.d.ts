@@ -1,17 +1,17 @@
 // src/types/users.d.ts
 
-export type AccountType = "CLIENT" | "ADMIN" | string;
+export type AccountType = "CLIENT" | "ADMIN" |  "ADMINISTRATEUR" | "UTILISATEUR" | string;
 export type AccountStatus = "ACTIF" | "INACTIF" | string;
 
 /**
  * DTO utilisateur (aligné sur UtilisateurSerializer côté backend)
- * fields = ["id", "username", "email", "type_compte", "statut", "date_creation"]
+ * fields = ["id", "username", "email", "role", "statut", "date_creation"]
  */
 export interface User {
   id: number;
   username: string;
   email: string;
-  type_compte?: AccountType;
+  role?: AccountType;
   statut?: AccountStatus;
   date_creation?: string;
   
@@ -44,7 +44,7 @@ export interface UserRegisterPayload {
   username: string;
   email: string;
   password: string;
-  type_compte?: AccountType;
+  role?: AccountType;
 }
 
 /**
@@ -54,6 +54,6 @@ export interface UserRegisterPayload {
 export interface UserUpdatePayload {
   username?: string;
   email?: string;
-  type_compte?: AccountType;
+  role?: AccountType;
   statut?: AccountStatus;
 }
