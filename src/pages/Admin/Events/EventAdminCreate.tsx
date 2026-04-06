@@ -53,7 +53,7 @@ export default function EventAdminCreate() {
       await api.post("/evenements/admin/", formData);
       navigate("/admin/evenements");
     } catch {
-      setError("Erreur lors de la création de l’événement.");
+      setError("Erreur lors de la création.");
     } finally {
       setSaving(false);
     }
@@ -61,27 +61,23 @@ export default function EventAdminCreate() {
 
   return (
     <div className="admin-page">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="admin-title">Créer un événement</h1>
-        <p className="admin-subtitle">
+      <div style={{ marginBottom: "1.2rem" }}>
+        <div className="admin-title">Créer un événement</div>
+        <div className="admin-subtitle">
           Création d’une épreuve affichée dans la boutique.
-        </p>
+        </div>
       </div>
 
       {error && (
-        <div className="admin-alert mb-4">
+        <div className="admin-alert" style={{ marginBottom: "1rem" }}>
           {error}
         </div>
       )}
 
-      <div className="admin-table-wrap p-4">
-        <form
-          onSubmit={onSubmit}
-          className="grid gap-4 max-w-3xl"
-        >
+      <div className="admin-table-wrap" style={{ padding: "1rem" }}>
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: "1rem", maxWidth: 820 }}>
           {/* Ligne 1 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
               <div className="admin-text-muted">Nom de l’événement *</div>
               <input
@@ -102,7 +98,7 @@ export default function EventAdminCreate() {
           </div>
 
           {/* Ligne 2 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
               <div className="admin-text-muted">Date *</div>
               <input
@@ -123,11 +119,8 @@ export default function EventAdminCreate() {
             </div>
           </div>
 
-          {/* Descriptions */}
           <div>
-            <div className="admin-text-muted">
-              Description courte (carte boutique)
-            </div>
+            <div className="admin-text-muted">Description courte</div>
             <textarea
               className="admin-input"
               style={{ minHeight: 100 }}
@@ -137,28 +130,23 @@ export default function EventAdminCreate() {
           </div>
 
           <div>
-            <div className="admin-text-muted">
-              Description longue (page détail)
-            </div>
+            <div className="admin-text-muted">Description longue</div>
             <textarea
               className="admin-input"
-              style={{ minHeight: 140 }}
+              style={{ minHeight: 130 }}
               value={descriptionLongue}
               onChange={(e) => setDescriptionLongue(e.target.value)}
             />
           </div>
 
-          {/* Image + statut */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
               <div className="admin-text-muted">Image</div>
               <input
                 type="file"
                 accept="image/*"
                 className="admin-input"
-                onChange={(e) =>
-                  setImage(e.target.files?.[0] ?? null)
-                }
+                onChange={(e) => setImage(e.target.files?.[0] ?? null)}
               />
             </div>
 
@@ -167,9 +155,7 @@ export default function EventAdminCreate() {
               <select
                 className="admin-select"
                 value={statut}
-                onChange={(e) =>
-                  setStatut(e.target.value as EventStatus)
-                }
+                onChange={(e) => setStatut(e.target.value as EventStatus)}
               >
                 <option value="BROUILLON">Brouillon</option>
                 <option value="PUBLIE">Publié</option>
@@ -178,20 +164,11 @@ export default function EventAdminCreate() {
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4">
-            <Link
-              to="/admin/evenements"
-              className="admin-btn admin-btn--ghost"
-            >
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+            <Link to="/admin/evenements" className="admin-btn admin-btn--ghost">
               Annuler
             </Link>
-
-            <button
-              type="submit"
-              className="admin-btn"
-              disabled={saving}
-            >
+            <button type="submit" className="admin-btn" disabled={saving}>
               {saving ? "Création…" : "Créer"}
             </button>
           </div>
