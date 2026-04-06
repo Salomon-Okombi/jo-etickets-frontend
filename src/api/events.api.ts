@@ -13,33 +13,46 @@ export interface Event {
   statut: "BROUILLON" | "PUBLIE" | "ARCHIVE";
 }
 
-export type CreateEventPayload = FormData;
-export type UpdateEventPayload = FormData;
+/*  PAGINATION (OBLIGATOIRE POUR useEvents) */
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
 
 /* ===== PUBLIC ===== */
 
-export async function listEvents(params?: any) {
+export async function listEvents(
+  params?: any
+): Promise<Paginated<Event>> {
   const { data } = await api.get("/evenements/", { params });
   return data;
 }
 
-export async function getEvent(id: number) {
+export async function getEvent(id: number): Promise<Event> {
   const { data } = await api.get(`/evenements/${id}/`);
   return data;
 }
 
-/* ===== ADMIN ( URLS CORRECTES) ===== */
+/* ===== ADMIN ===== */
 
-export async function createEvent(formData: FormData) {
+export async function createEvent(formData: FormData): Promise<Event> {
   const { data } = await api.post("/evenements/admin/", formData);
   return data;
 }
 
-export async function updateEvent(id: number, formData: FormData) {
-  const { data } = await api.patch(`/evenements/admin/${id}/`, formData);
+export async function updateEvent(
+  id: number,
+  formData: FormData
+): Promise<Event> {
+  const { data } = await api.patch(
+    `/evenements/admin/${id}/`,
+    formData
+  );
   return data;
 }
 
-export async function deleteEvent(id: number) {
+export async function deleteEvent(id: number): Promise<void> {
   await api.delete(`/evenements/admin/${id}/`);
 }
