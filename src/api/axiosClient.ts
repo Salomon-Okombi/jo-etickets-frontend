@@ -4,21 +4,14 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 
-/**
- * ===========================================================
- * AXIOS CLIENT — PUBLIC + AUTH (JWT) — PRODUCTION READY
- * ===========================================================
- * Pas d'Authorization pour les visiteurs
- * JWT ajouté uniquement si valide
- * Refresh automatique SimpleJWT
- * Queue anti double refresh
- * Compatible Django REST Framework + Render
- * ===========================================================
- */
-
-/* ------------------------------------------------------------------
-   Configuration
------------------------------------------------------------------- */
+/* ===========================================================
+   AXIOS CLIENT — PUBLIC + AUTH (JWT)
+   ===========================================================
+   - Pas d'Authorization pour les endpoints publics
+   - JWT UNIQUEMENT pour endpoints protégés
+   - Refresh automatique avec file d’attente
+   - Compatible DRF + SimpleJWT + Render
+=========================================================== */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -26,21 +19,25 @@ if (!BASE_URL) {
   throw new Error("VITE_API_BASE_URL non définie");
 }
 
-const REFRESH_ENDPOINT = "/utilisateurs/token/refresh/";
-const AUTH_STORAGE_KEY = "auth_tokens";
+/* ===========================================================
+   CONSTANTES
+=========================================================== */
 
-/* ------------------------------------------------------------------
-   Types
------------------------------------------------------------------- */
+const AUTH_STORAGE_KEY = "auth_tokens";
+const REFRESH_ENDPOINT = "/utilisateurs/token/refresh/";
+
+/* ===========================================================
+   TYPES
+=========================================================== */
 
 export interface JwtPair {
   access: string;
   refresh: string;
 }
 
-/* ------------------------------------------------------------------
-   Storage helpers
------------------------------------------------------------------- */
+/* ===========================================================
+   HELPERS LOCAL STORAGE
+=========================================================== */
 
 function getStoredTokens(): JwtPair | null {
   try {
@@ -69,9 +66,9 @@ function clearStoredTokens() {
   window.dispatchEvent(new CustomEvent("auth:logout"));
 }
 
-/* ------------------------------------------------------------------
-   Axios instance
------------------------------------------------------------------- */
+/* ===========================================================
+   AXIOS INSTANCE
+=========================================================== */
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -82,9 +79,23 @@ const api: AxiosInstance = axios.create({
   },
 });
 
-/* ------------------------------------------------------------------
-   Refresh logic (anti double refresh)
------------------------------------------------------------------- */
+/* ===========================================================
+   ENDPOINTS PUBLICS (CRITIQUE)
+   -> AUCUN JWT DOIT ÊTRE ENVOYÉ ICI
+=========================================================== */
+
+function isPublicEndpoint(url?: string): boolean {
+  if (!url) return false;
+
+  return (
+    url.startsWith("/evenements") ||
+    url.startsWith("/offres")
+  );
+}
+
+/* ===========================================================
+   REFRESH TOKEN — ANTI DOUBLE REFRESH
+=========================================================== */
 
 let isRefreshing = false;
 let refreshQueue: Array<(token: string) => void> = [];
@@ -97,7 +108,7 @@ function notifyQueue(newToken: string) {
 async function refreshAccessToken(): Promise<string> {
   const tokens = getStoredTokens();
   if (!tokens?.refresh) {
-    throw new Error("No refresh token available");
+    throw new Error("Aucun refresh token disponible");
   }
 
   const response = await axios.post<{ access: string }>(
@@ -114,19 +125,23 @@ async function refreshAccessToken(): Promise<string> {
   return response.data.access;
 }
 
-/* ------------------------------------------------------------------
+/* ===========================================================
    REQUEST INTERCEPTOR
-   Envoie Authorization UNIQUEMENT si token valide
------------------------------------------------------------------- */
+=========================================================== */
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const tokens = getStoredTokens();
 
-    if (tokens && typeof tokens.access === "string" && tokens.access.length > 0) {
+    if (isPublicEndpoint(config.url)) {
+      // ✅ TRÈS IMPORTANT : jamais de JWT sur endpoints publics
+      delete config.headers.Authorization;
+      return config;
+    }
+
+    if (tokens?.access) {
       config.headers.Authorization = `Bearer ${tokens.access}`;
     } else {
-      // CRITIQUE : ne jamais envoyer Authorization vide
       delete config.headers.Authorization;
     }
 
@@ -135,10 +150,9 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* ------------------------------------------------------------------
-   RESPONSE INTERCEPTOR
-   401 → refresh automatique → retry
------------------------------------------------------------------- */
+/* ===========================================================
+   RESPONSE INTERCEPTOR — REFRESH JWT
+=========================================================== */
 
 api.interceptors.response.use(
   (response) => response,
@@ -150,7 +164,8 @@ api.interceptors.response.use(
     if (
       !originalRequest ||
       error.response?.status !== 401 ||
-      originalRequest._retry
+      originalRequest._retry ||
+      isPublicEndpoint(originalRequest.url)
     ) {
       return Promise.reject(error);
     }
