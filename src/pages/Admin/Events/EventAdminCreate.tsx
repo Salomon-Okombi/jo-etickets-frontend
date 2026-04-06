@@ -16,6 +16,7 @@ export default function EventAdminCreate() {
   const [descriptionCourte, setDescriptionCourte] = useState("");
   const [descriptionLongue, setDescriptionLongue] = useState("");
   const [statut, setStatut] = useState<EventStatus>("BROUILLON");
+  const [image, setImage] = useState<File | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,15 +42,20 @@ export default function EventAdminCreate() {
     try {
       setSubmitting(true);
 
-      await api.post("/admin/evenements/", {
-        nom_evenement: nomEvenement.trim(),
-        discipline: discipline.trim(),
-        date_evenement: dateEvenement,
-        lieu: lieu.trim(),
-        description_courte: descriptionCourte.trim(),
-        description_longue: descriptionLongue.trim(),
-        statut,
-      });
+      const formData = new FormData();
+      formData.append("nom_evenement", nomEvenement.trim());
+      formData.append("discipline", discipline.trim());
+      formData.append("date_evenement", dateEvenement);
+      formData.append("lieu", lieu.trim());
+      formData.append("description_courte", descriptionCourte.trim());
+      formData.append("description_longue", descriptionLongue.trim());
+      formData.append("statut", statut);
+
+      if (image) {
+        formData.append("image", image);
+      }
+
+      await api.post("/evenements/admin/", formData);
 
       navigate("/admin/evenements");
     } catch (err: any) {
@@ -75,7 +81,7 @@ export default function EventAdminCreate() {
     <div className="admin-page">
       <div className="admin-title">Nouvel événement</div>
       <div className="admin-subtitle">
-        Création d’une épreuve affichée dans la boutique événements.
+        Création d’une épreuve affichée dans la boutique.
       </div>
 
       <Link className="admin-btn admin-btn--ghost" to="/admin/evenements">
@@ -89,7 +95,10 @@ export default function EventAdminCreate() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ maxWidth: 760, display: "grid", gap: 12 }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ maxWidth: 760, display: "grid", gap: 12 }}
+        >
           <input
             className="admin-input"
             placeholder="Nom de l’événement"
@@ -120,7 +129,7 @@ export default function EventAdminCreate() {
 
           <textarea
             className="admin-input"
-            placeholder="Description courte (boutique)"
+            placeholder="Description courte (affichée dans la boutique)"
             value={descriptionCourte}
             onChange={(e) => setDescriptionCourte(e.target.value)}
           />
@@ -131,6 +140,17 @@ export default function EventAdminCreate() {
             value={descriptionLongue}
             onChange={(e) => setDescriptionLongue(e.target.value)}
           />
+
+          {/* Upload image */}
+          <div>
+            <label className="admin-text-muted">Image de l’événement</label>
+            <input
+              type="file"
+              accept="image/*"
+              className="admin-input"
+              onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+            />
+          </div>
 
           <select
             className="admin-select"
