@@ -5,12 +5,7 @@ import axios, {
 } from "axios";
 
 /* ===========================================================
-   AXIOS CLIENT — VERSION FINALE STABLE
-   ===========================================================
-   - AUCUN JWT sur endpoints publics
-   - JWT uniquement sur endpoints protégés
-   - Refresh automatique SimpleJWT
-   - Production-safe (Render + DRF)
+   AXIOS CLIENT — VERSION DÉFINITIVE
 =========================================================== */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -19,16 +14,8 @@ if (!BASE_URL) {
   throw new Error("VITE_API_BASE_URL non définie");
 }
 
-/* ===========================================================
-   CONSTANTES
-=========================================================== */
-
 const AUTH_STORAGE_KEY = "auth_tokens";
-const REFRESH_ENDPOINT = "/api/utilisateurs/token/refresh/";
-
-/* ===========================================================
-   TYPES
-=========================================================== */
+const REFRESH_ENDPOINT = "/utilisateurs/token/refresh/";
 
 export interface JwtPair {
   access: string;
@@ -45,12 +32,7 @@ function getStoredTokens(): JwtPair | null {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    if (
-      typeof parsed?.access === "string" &&
-      typeof parsed?.refresh === "string"
-    ) {
-      return parsed;
-    }
+    if (parsed?.access && parsed?.refresh) return parsed;
     return null;
   } catch {
     return null;
@@ -80,21 +62,22 @@ const api: AxiosInstance = axios.create({
 });
 
 /* ===========================================================
-    CORRECTION CRITIQUE
-   Détection DES VRAIES routes publiques
+    CORRECTION FINALE ICI
 =========================================================== */
 
 function isPublicEndpoint(url?: string): boolean {
   if (!url) return false;
 
   return (
+    url.startsWith("/evenements") ||
+    url.startsWith("/offres") ||
     url.startsWith("/api/evenements") ||
     url.startsWith("/api/offres")
   );
 }
 
 /* ===========================================================
-   REFRESH LOGIC (ANTI DOUBLE REFRESH)
+   REFRESH TOKEN
 =========================================================== */
 
 let isRefreshing = false;
@@ -107,20 +90,14 @@ function notifyQueue(newToken: string) {
 
 async function refreshAccessToken(): Promise<string> {
   const tokens = getStoredTokens();
-  if (!tokens?.refresh) {
-    throw new Error("Aucun refresh token disponible");
-  }
+  if (!tokens?.refresh) throw new Error("No refresh token");
 
   const response = await axios.post<{ access: string }>(
     `${BASE_URL}${REFRESH_ENDPOINT}`,
     { refresh: tokens.refresh }
   );
 
-  setStoredTokens({
-    access: response.data.access,
-    refresh: tokens.refresh,
-  });
-
+  setStoredTokens({ access: response.data.access, refresh: tokens.refresh });
   return response.data.access;
 }
 
@@ -133,7 +110,6 @@ api.interceptors.request.use(
     const tokens = getStoredTokens();
 
     if (isPublicEndpoint(config.url)) {
-      //  JAMAIS de JWT sur boutique
       delete config.headers.Authorization;
       return config;
     }
