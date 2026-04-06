@@ -5,12 +5,12 @@ import axios, {
 } from "axios";
 
 /* ===========================================================
-   AXIOS CLIENT — PUBLIC + AUTH (JWT)
+   AXIOS CLIENT — VERSION FINALE STABLE
    ===========================================================
-   - Pas d'Authorization pour les endpoints publics
-   - JWT UNIQUEMENT pour endpoints protégés
-   - Refresh automatique avec file d’attente
-   - Compatible DRF + SimpleJWT + Render
+   - AUCUN JWT sur endpoints publics
+   - JWT uniquement sur endpoints protégés
+   - Refresh automatique SimpleJWT
+   - Production-safe (Render + DRF)
 =========================================================== */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -24,7 +24,7 @@ if (!BASE_URL) {
 =========================================================== */
 
 const AUTH_STORAGE_KEY = "auth_tokens";
-const REFRESH_ENDPOINT = "/utilisateurs/token/refresh/";
+const REFRESH_ENDPOINT = "/api/utilisateurs/token/refresh/";
 
 /* ===========================================================
    TYPES
@@ -36,7 +36,7 @@ export interface JwtPair {
 }
 
 /* ===========================================================
-   HELPERS LOCAL STORAGE
+   STORAGE
 =========================================================== */
 
 function getStoredTokens(): JwtPair | null {
@@ -80,21 +80,21 @@ const api: AxiosInstance = axios.create({
 });
 
 /* ===========================================================
-   ENDPOINTS PUBLICS (CRITIQUE)
-   -> AUCUN JWT DOIT ÊTRE ENVOYÉ ICI
+    CORRECTION CRITIQUE
+   Détection DES VRAIES routes publiques
 =========================================================== */
 
 function isPublicEndpoint(url?: string): boolean {
   if (!url) return false;
 
   return (
-    url.startsWith("/evenements") ||
-    url.startsWith("/offres")
+    url.startsWith("/api/evenements") ||
+    url.startsWith("/api/offres")
   );
 }
 
 /* ===========================================================
-   REFRESH TOKEN — ANTI DOUBLE REFRESH
+   REFRESH LOGIC (ANTI DOUBLE REFRESH)
 =========================================================== */
 
 let isRefreshing = false;
@@ -116,12 +116,11 @@ async function refreshAccessToken(): Promise<string> {
     { refresh: tokens.refresh }
   );
 
-  const updatedTokens: JwtPair = {
+  setStoredTokens({
     access: response.data.access,
     refresh: tokens.refresh,
-  };
+  });
 
-  setStoredTokens(updatedTokens);
   return response.data.access;
 }
 
@@ -134,7 +133,7 @@ api.interceptors.request.use(
     const tokens = getStoredTokens();
 
     if (isPublicEndpoint(config.url)) {
-      // ✅ TRÈS IMPORTANT : jamais de JWT sur endpoints publics
+      //  JAMAIS de JWT sur boutique
       delete config.headers.Authorization;
       return config;
     }
@@ -151,7 +150,7 @@ api.interceptors.request.use(
 );
 
 /* ===========================================================
-   RESPONSE INTERCEPTOR — REFRESH JWT
+   RESPONSE INTERCEPTOR — JWT REFRESH
 =========================================================== */
 
 api.interceptors.response.use(
@@ -173,30 +172,27 @@ api.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      let newAccessToken: string;
+      let newAccess: string;
 
       if (!isRefreshing) {
         isRefreshing = true;
-        newAccessToken = await refreshAccessToken();
+        newAccess = await refreshAccessToken();
         isRefreshing = false;
-        notifyQueue(newAccessToken);
+        notifyQueue(newAccess);
       } else {
-        newAccessToken = await new Promise<string>((resolve, reject) => {
+        newAccess = await new Promise<string>((resolve, reject) => {
           refreshQueue.push(resolve);
-          setTimeout(
-            () => reject(new Error("JWT refresh timeout")),
-            10000
-          );
+          setTimeout(() => reject(new Error("JWT refresh timeout")), 10000);
         });
       }
 
-      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      originalRequest.headers.Authorization = `Bearer ${newAccess}`;
       return api(originalRequest);
-    } catch (refreshError) {
+    } catch (e) {
       isRefreshing = false;
       refreshQueue = [];
       clearStoredTokens();
-      return Promise.reject(refreshError);
+      return Promise.reject(e);
     }
   }
 );
