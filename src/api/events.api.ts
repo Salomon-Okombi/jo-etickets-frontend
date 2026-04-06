@@ -9,44 +9,37 @@ export interface Event {
   lieu: string;
   description_courte: string;
   description_longue: string;
-  image_url: string;
+  image_url?: string;
   statut: "BROUILLON" | "PUBLIE" | "ARCHIVE";
 }
 
-export type CreateEventPayload = Omit<Event, "id" | "image_url">;
-export type UpdateEventPayload = Partial<CreateEventPayload>;
-
-export interface Paginated<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
+export type CreateEventPayload = FormData;
+export type UpdateEventPayload = FormData;
 
 /* ===== PUBLIC ===== */
 
-export async function listEvents(params?: any): Promise<Paginated<Event>> {
+export async function listEvents(params?: any) {
   const { data } = await api.get("/evenements/", { params });
   return data;
 }
 
-export async function getEvent(id: number): Promise<Event> {
+export async function getEvent(id: number) {
   const { data } = await api.get(`/evenements/${id}/`);
   return data;
 }
 
-/* ===== ADMIN ===== */
+/* ===== ADMIN ( URLS CORRECTES) ===== */
 
-export async function createEvent(payload: CreateEventPayload): Promise<Event> {
-  const { data } = await api.post("/admin/evenements/", payload);
+export async function createEvent(formData: FormData) {
+  const { data } = await api.post("/evenements/admin/", formData);
   return data;
 }
 
-export async function updateEvent(id: number, payload: UpdateEventPayload): Promise<Event> {
-  const { data } = await api.patch(`/admin/evenements/${id}/`, payload);
+export async function updateEvent(id: number, formData: FormData) {
+  const { data } = await api.patch(`/evenements/admin/${id}/`, formData);
   return data;
 }
 
-export async function deleteEvent(id: number): Promise<void> {
-  await api.delete(`/admin/evenements/${id}/`);
+export async function deleteEvent(id: number) {
+  await api.delete(`/evenements/admin/${id}/`);
 }
