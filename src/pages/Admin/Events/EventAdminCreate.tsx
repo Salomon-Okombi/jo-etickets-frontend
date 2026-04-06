@@ -30,6 +30,7 @@ export default function EventAdminCreate() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+
     const v = validate();
     if (v) {
       setError(v);
@@ -68,19 +69,18 @@ export default function EventAdminCreate() {
         </div>
       </div>
 
-      {error && (
-        <div className="admin-alert" style={{ marginBottom: "1rem" }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="admin-alert">{error}</div>}
 
       <div className="admin-table-wrap" style={{ padding: "1rem" }}>
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: "1rem", maxWidth: 820 }}>
-          {/* Ligne 1 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <form onSubmit={onSubmit} className="admin-form">
+
+          <div className="admin-grid-2">
             <div>
-              <div className="admin-text-muted">Nom de l’événement *</div>
+              <label className="admin-text-muted" htmlFor="nom">
+                Nom de l’événement *
+              </label>
               <input
+                id="nom"
                 className="admin-input"
                 value={nomEvenement}
                 onChange={(e) => setNomEvenement(e.target.value)}
@@ -88,8 +88,11 @@ export default function EventAdminCreate() {
             </div>
 
             <div>
-              <div className="admin-text-muted">Discipline *</div>
+              <label className="admin-text-muted" htmlFor="discipline">
+                Discipline *
+              </label>
               <input
+                id="discipline"
                 className="admin-input"
                 value={discipline}
                 onChange={(e) => setDiscipline(e.target.value)}
@@ -97,11 +100,13 @@ export default function EventAdminCreate() {
             </div>
           </div>
 
-          {/* Ligne 2 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div className="admin-grid-2">
             <div>
-              <div className="admin-text-muted">Date *</div>
+              <label className="admin-text-muted" htmlFor="date">
+                Date *
+              </label>
               <input
+                id="date"
                 type="date"
                 className="admin-input"
                 value={dateEvenement}
@@ -110,8 +115,11 @@ export default function EventAdminCreate() {
             </div>
 
             <div>
-              <div className="admin-text-muted">Lieu *</div>
+              <label className="admin-text-muted" htmlFor="lieu">
+                Lieu *
+              </label>
               <input
+                id="lieu"
                 className="admin-input"
                 value={lieu}
                 onChange={(e) => setLieu(e.target.value)}
@@ -120,38 +128,36 @@ export default function EventAdminCreate() {
           </div>
 
           <div>
-            <div className="admin-text-muted">Description courte</div>
+            <label className="admin-text-muted">Description courte</label>
             <textarea
-              className="admin-input"
-              style={{ minHeight: 100 }}
+              className="admin-textarea"
               value={descriptionCourte}
               onChange={(e) => setDescriptionCourte(e.target.value)}
             />
           </div>
 
           <div>
-            <div className="admin-text-muted">Description longue</div>
+            <label className="admin-text-muted">Description longue</label>
             <textarea
-              className="admin-input"
-              style={{ minHeight: 130 }}
+              className="admin-textarea admin-textarea--lg"
               value={descriptionLongue}
               onChange={(e) => setDescriptionLongue(e.target.value)}
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <div className="admin-grid-2">
             <div>
-              <div className="admin-text-muted">Image</div>
+              <label className="admin-text-muted">Image</label>
               <input
                 type="file"
                 accept="image/*"
-                className="admin-input"
+                className="admin-file"
                 onChange={(e) => setImage(e.target.files?.[0] ?? null)}
               />
             </div>
 
             <div>
-              <div className="admin-text-muted">Statut</div>
+              <label className="admin-text-muted">Statut</label>
               <select
                 className="admin-select"
                 value={statut}
@@ -164,10 +170,11 @@ export default function EventAdminCreate() {
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+          <div className="admin-actions">
             <Link to="/admin/evenements" className="admin-btn admin-btn--ghost">
               Annuler
             </Link>
+
             <button type="submit" className="admin-btn" disabled={saving}>
               {saving ? "Création…" : "Créer"}
             </button>
