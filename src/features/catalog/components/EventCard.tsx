@@ -15,15 +15,12 @@ export default function EventCard({
   className,
   showCTA = true,
 }: Props) {
-  /** 
-   * IMPORTANT
-   * image_url vient du backend (URL absolue ou null)
-   * Le fallback est un asset FRONTEND
-   */
+  const fallbackImage = "/images/event-default.jpg";
+
   const imageSrc =
     event.image_url && event.image_url.trim() !== ""
       ? event.image_url
-      : "/images/event-default.jpg";
+      : fallbackImage;
 
   return (
     <div
@@ -37,6 +34,9 @@ export default function EventCard({
           alt={event.nom_evenement}
           className="w-full h-full object-cover"
           loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = fallbackImage;
+          }}
         />
       </figure>
 
