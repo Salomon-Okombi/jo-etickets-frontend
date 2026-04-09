@@ -15,25 +15,32 @@ export default function EventCard({
   className,
   showCTA = true,
 }: Props) {
-  // Fallback image géré côté FRONTEND
-  const imageSrc = event.image_url ?? "/images/event-default.jpg";
+  /** 
+   * IMPORTANT
+   * image_url vient du backend (URL absolue ou null)
+   * Le fallback est un asset FRONTEND
+   */
+  const imageSrc =
+    event.image_url && event.image_url.trim() !== ""
+      ? event.image_url
+      : "/images/event-default.jpg";
 
   return (
     <div
-      className={`card bg-base-100 shadow-sm border border-base-200 hover:shadow-md transition ${className ?? ""}`}
+      className={`card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition ${
+        className ?? ""
+      }`}
     >
-      {/* IMAGE */}
-      <figure className="relative h-44 overflow-hidden">
+      <figure className="h-44 overflow-hidden bg-base-200">
         <img
           src={imageSrc}
           alt={event.nom_evenement}
-          className="h-full w-full object-cover"
+          className="w-full h-full object-cover"
           loading="lazy"
         />
       </figure>
 
       <div className="card-body gap-3">
-        {/*  TITRE + BADGE */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="card-title text-base sm:text-lg leading-snug">
             {event.nom_evenement}
@@ -41,7 +48,6 @@ export default function EventCard({
           {event.discipline && <Badge>{event.discipline}</Badge>}
         </div>
 
-        {/* INFOS */}
         <div className="text-sm opacity-80 space-y-1">
           <p>
             <span className="font-medium">Date :</span>{" "}
@@ -57,21 +63,16 @@ export default function EventCard({
           </p>
         </div>
 
-        {/* DESCRIPTION */}
         {event.description_courte && (
           <p className="text-sm line-clamp-3 opacity-90">
             {event.description_courte}
           </p>
         )}
 
-        {/* CTA */}
         {showCTA && (
           <div className="card-actions justify-end pt-2">
             <Link to={`/evenements/${event.id}`}>
-              <Button
-                variant="primary"
-                aria-label={`Voir l'événement ${event.nom_evenement}`}
-              >
+              <Button variant="primary">
                 Voir l’événement
               </Button>
             </Link>
