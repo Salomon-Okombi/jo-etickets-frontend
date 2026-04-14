@@ -8,7 +8,7 @@ type EventItem = {
   id: number;
   nom_evenement: string;
   description_courte: string;
-  image_url: string;
+  image_url?: string | null;
   lieu: string;
   date_evenement: string;
   heure_evenement?: string | null;
@@ -21,6 +21,8 @@ type Paginated<T> = {
   previous: string | null;
   results: T[];
 };
+
+const FALLBACK_IMAGE = "/images/event-default.jpg";
 
 const EventsListPage: React.FC = () => {
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -49,13 +51,13 @@ const EventsListPage: React.FC = () => {
           setSearch(q);
         }
 
-        const { data } = await api.get<Paginated<EventItem> | EventItem[]>(
+        const { data } = await api.get<Paginated<EventItem>>(
           "/evenements/",
           { params }
         );
 
         if (!mounted) return;
-        setEvents(Array.isArray(data) ? data : data.results);
+        setEvents(data.results);
       } catch {
         if (mounted) {
           setError("Impossible de charger les épreuves.");
@@ -106,11 +108,11 @@ const EventsListPage: React.FC = () => {
     try {
       setAddingId(event.id);
 
-      const { data } = await api.get<Paginated<Offer> | Offer[]>("/offres/", {
+      const { data } = await api.get<Paginated<Offer>>("/offres/", {
         params: { evenement: event.id, statut: "DISPONIBLE" },
       });
 
-      const offers = Array.isArray(data) ? data : data.results;
+      const offers = data.results;
       if (!offers.length) {
         setError("Aucune offre disponible pour cette épreuve.");
         return;
@@ -137,8 +139,7 @@ const EventsListPage: React.FC = () => {
         <div className="events-page__hero-inner">
           <h1 className="events-page__title">Épreuves et événements</h1>
           <p className="events-page__subtitle">
-            Parcourez la billetterie officielle et choisissez les épreuves qui vous
-            feront vibrer pendant les Jeux Olympiques.
+            Parcourez la billetterie officielle et choisissez les épreuves.
           </p>
 
           <form className="events-page__search" onSubmit={handleSearchSubmit}>
@@ -158,62 +159,69 @@ const EventsListPage: React.FC = () => {
 
       <section className="events-page__content">
         <div className="events-page__inner">
-          {loading && <div className="events-page__state">Chargement…</div>}
-
-          {error && (
-            <div className="events-page__state events-page__state--error">
-              {error}
-            </div>
-          )}
+          {loading && <div>Chargement…</div>}
+          {error && <div>{error}</div>}
 
           <div className="events-page__grid">
-            {events.map((event) => (
-              <article key={event.id} className="event-card">
-                <img
-                  src={event.image_url}
-                  alt={event.nom_evenement}
-                  className="event-card__image"
-                />
+            {events.map((event) => {
+              const imageSrc =
+                event.image_url && event.image_url.trim() !== ""
+                  ? event.image_url
+                  : FALLBACK_IMAGE;
 
-                <header className="event-card__header">
-                  <div className="event-card__date">
-                    {formatDate(event.date_evenement)}
-                    {formatTime(event) && ` · ${formatTime(event)}`}
-                  </div>
+              return (
+                <article key={event.id} className="event-card">
+                  <img
+                    src={imageSrc}
+                    alt={event.nom_evenement}
+                    className="event-card__image"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
+                    }}
+                  />
 
-                  <h2 className="event-card__title">{event.nom_evenement}</h2>
-
-                  {event.discipline && (
-                    <div className="event-card__discipline">
-                      {event.discipline}
+                  <header className="event-card__header">
+                    <div className="event-card__date">
+                      {formatDate(event.date_evenement)}
+                      {formatTime(event) && ` · ${formatTime(event)}`}
                     </div>
-                  )}
-                </header>
 
-                <p className="event-card__description">
-                  {event.description_courte}
-                </p>
+                    <h2 className="event-card__title">
+                      {event.nom_evenement}
+                    </h2>
 
-                <div className="event-card__actions">
-                  <Link
-                    to={`/evenements/${event.id}`}
-                    className="event-card__link"
-                  >
-                    Plus de détails
-                  </Link>
+                    {event.discipline && (
+                      <div className="event-card__discipline">
+                        {event.discipline}
+                      </div>
+                    )}
+                  </header>
 
-                  <button
-                    className="event-card__cta"
-                    onClick={() => handleAddToCart(event)}
-                    disabled={addingId === event.id}
-                  >
-                    {addingId === event.id
-                      ? "Ajout en cours"
-                      : "Ajouter au panier"}
-                  </button>
-                </div>
-              </article>
-            ))}
+                  <p className="event-card__description">
+                    {event.description_courte}
+                  </p>
+
+                  <div className="event-card__actions">
+                    <Link
+                      to={`/evenements/${event.id}`}
+                      className="event-card__link"
+                    >
+                      Plus de détails
+                    </Link>
+
+                    <button
+                      className="event-card__cta"
+                      onClick={() => handleAddToCart(event)}
+                      disabled={addingId === event.id}
+                    >
+                      {addingId === event.id
+                        ? "Ajout en cours"
+                        : "Ajouter au panier"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>

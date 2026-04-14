@@ -1,3 +1,4 @@
+//evenements/EvenementsListPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchPublicEvenements } from "@/api/publicEvenements";

@@ -1,3 +1,4 @@
+//features/catalog/components/EventCard.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import type { Event } from "@/api/events.api";

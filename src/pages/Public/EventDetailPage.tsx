@@ -7,12 +7,14 @@ type EventDetail = {
   id: number;
   nom_evenement: string;
   description_longue: string;
-  image_url: string;
+  image_url?: string | null;
   lieu: string;
   date_evenement: string;
   heure_evenement?: string | null;
   discipline?: string | null;
 };
+
+const FALLBACK_IMAGE = "/images/event-default.jpg";
 
 const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,7 +46,7 @@ const EventDetailPage: React.FC = () => {
       }
     }
 
-    fetchEvent();
+    if (id) fetchEvent();
     return () => {
       mounted = false;
     };
@@ -81,22 +83,17 @@ const EventDetailPage: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="event-detail">
-        <div className="event-detail__state">Chargement…</div>
-      </div>
-    );
+    return <div>Chargement…</div>;
   }
 
   if (error || !event) {
-    return (
-      <div className="event-detail">
-        <div className="event-detail__state event-detail__state--error">
-          {error ?? "Épreuve introuvable."}
-        </div>
-      </div>
-    );
+    return <div>{error ?? "Épreuve introuvable."}</div>;
   }
+
+  const imageSrc =
+    event.image_url && event.image_url.trim() !== ""
+      ? event.image_url
+      : FALLBACK_IMAGE;
 
   return (
     <div className="event-detail">
@@ -130,9 +127,13 @@ const EventDetailPage: React.FC = () => {
         <div className="event-detail__offers-inner">
           <div className="event-detail__image-wrapper">
             <img
-              src={event.image_url}
+              src={imageSrc}
               alt={event.nom_evenement}
               className="event-detail__image"
+              loading="lazy"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
+              }}
             />
           </div>
 

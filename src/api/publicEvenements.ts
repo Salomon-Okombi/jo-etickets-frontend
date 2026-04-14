@@ -1,3 +1,4 @@
+//publicEvenements.ts
 import  api  from "@/utils/http";
 import type { PublicEvenementDetail, PublicEvenementListItem } from "@/types/evenements";
 
