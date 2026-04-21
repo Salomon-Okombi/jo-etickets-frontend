@@ -1,4 +1,4 @@
-// src/hooks/useTickets.ts
+// features/tickets/hooks/useTickets.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   listBillets,

@@ -7,7 +7,7 @@ export type DashboardOverview = {
   nb_commandes: number;
   nb_utilisateurs: number;
   chiffre_affaires: number; // ou string selon ton backend
-  nb_tickets: number;       // ✅ réservations = tickets
+  nb_tickets: number;       // réservations = tickets
 };
 
 export type TicketRow = {

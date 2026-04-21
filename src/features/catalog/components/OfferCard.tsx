@@ -1,3 +1,4 @@
+//features/catalog/components/OffertCard.tsx
 import React, { useState } from "react";
 import type { Offer } from "@/types/offers";
 import  Button  from "@/components/ui/Button";

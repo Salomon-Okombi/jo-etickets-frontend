@@ -1,4 +1,5 @@
 //EvenementDetailPage.tsx
+/*
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { fetchPublicEvenement } from "@/api/publicEvenements";
@@ -200,4 +201,4 @@ export default function EvenementDetailPage() {
   }, [event, error, modalOpen, selectedOffre]);
 
   return content;
-}
+}*/

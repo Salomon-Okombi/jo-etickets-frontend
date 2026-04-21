@@ -1,3 +1,4 @@
+//paiements.api.ts
 import  api  from "@/api/axiosClient";
 
 export type Paiement = {

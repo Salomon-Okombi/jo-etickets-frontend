@@ -2,7 +2,7 @@
 import  api  from "./axiosClient";
 
 /* ------------------------------------------------------------------
-   🧱 Types
+   Types
 ------------------------------------------------------------------ */
 export interface SalesStats {
   id: number;
@@ -28,7 +28,7 @@ export interface Paginated<T> {
 }
 
 /* ------------------------------------------------------------------
-   ⚙️ Endpoints : /api/statistiques/ventes/
+    Endpoints : /api/statistiques/ventes/
    - GET    /ventes/                  -> listSalesStats
    - GET    /ventes/:id/              -> getSalesStats
    - GET    /ventes/global/           -> getGlobalSalesStats

@@ -20,7 +20,7 @@ interface TableProps<T> {
 }
 
 /**
- * ✅ Table générique et typée
+ * Table générique et typée
  * Exemple :
  * <Table columns={cols} data={orders} striped hoverable />
  */

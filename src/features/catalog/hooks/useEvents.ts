@@ -1,3 +1,4 @@
+//features/catalog/useEvents.ts
 import { useEffect, useState } from "react";
 import {
   listEvents,

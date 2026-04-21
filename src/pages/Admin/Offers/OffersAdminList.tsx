@@ -1,3 +1,4 @@
+// src/pages/Admin/Offers/OfferAdminList.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import  api  from "@/api/axiosClient";

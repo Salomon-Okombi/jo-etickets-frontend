@@ -1,3 +1,4 @@
+//src/types/billets.d.ts
 export type BilletStatus = "VALIDE" | "UTILISE" | "ANNULE" | "EXPIRE" | string;
 
 export interface EBillet {

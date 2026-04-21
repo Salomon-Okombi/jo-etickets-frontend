@@ -1,3 +1,4 @@
+//src/types/carts.d.ts
 export interface CartLine {
   id: number;
   offre: number;

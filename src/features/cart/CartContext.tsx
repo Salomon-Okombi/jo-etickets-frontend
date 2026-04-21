@@ -1,3 +1,4 @@
+//features/cart/CartContext.tsx
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import type { CartItem } from "./cart.types";
 import { clearCartStorage, countItems, loadCart, saveCart } from "./cart.storage";

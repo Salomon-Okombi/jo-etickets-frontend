@@ -1,3 +1,4 @@
+//src/types/evenements.ts
 export type EventStatus = "A_VENIR" | "EN_COURS" | "TERMINE";
 
 export type PublicEvenementListItem = {

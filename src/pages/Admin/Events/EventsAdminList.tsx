@@ -1,3 +1,4 @@
+//src/pages/Admin/Events/EventsAdminList.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import  api  from "@/api/axiosClient";
@@ -103,7 +104,7 @@ export default function EventsAdminList() {
         };
         if (search) params.search = search;
 
-        // ✅ Endpoint attendu (à adapter si besoin)
+        //  Endpoint attendu (à adapter si besoin)
         const { data } = await api.get<Paginated<Event>>("/evenements/", {
           params,
           signal: controller.signal,
@@ -135,9 +136,9 @@ export default function EventsAdminList() {
     if (!ok) return;
 
     try {
-      // ✅ Endpoint attendu (à adapter si besoin)
+      //  Endpoint attendu (à adapter si besoin)
       await api.delete(`/evenements/${id}/`);
-      showToast("Événement supprimé ✅", "success");
+      showToast("Événement supprimé ", "success");
 
       // Refresh : si la page devient vide après suppression, on recule d'une page si possible
       const nextCount = Math.max(0, count - 1);

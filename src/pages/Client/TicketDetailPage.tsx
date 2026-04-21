@@ -1,3 +1,4 @@
+//src/pages/Client/TicketDetailPage.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { EBillet } from "@/types/billets";

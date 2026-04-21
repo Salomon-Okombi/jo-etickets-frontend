@@ -1,3 +1,4 @@
+//src/layouts/MainFooter.tsx
 import { Link } from "react-router-dom";
 
 const MainFooter: React.FC = () => {

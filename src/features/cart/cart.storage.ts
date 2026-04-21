@@ -1,3 +1,4 @@
+//features/cart/cart.storage.ts
 import type { CartItem } from "./cart.types";
 
 const KEY = "jo_cart_v1";

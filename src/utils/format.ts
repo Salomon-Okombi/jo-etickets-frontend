@@ -1,3 +1,4 @@
+//src/utils/formats.ts
 import { DEFAULT_CURRENCY, DEFAULT_LOCALE } from "./constants";
 
 /** Nombre → prix (EUR par défaut) */

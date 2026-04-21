@@ -1,3 +1,4 @@
+//features/catalog/useOffers.ts
 import { useCallback, useEffect, useState } from "react";
 import { listOffers } from "@/api/offers.api";
 import type { Offer, Paginated, OfferListParams } from "@/types/offers";

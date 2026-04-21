@@ -1,3 +1,4 @@
+//src/pages/Client/OffersListPage.tsx
 import { useEffect, useState } from "react";
 import { addToCart } from "@/api/carts.api";
 import { listOffers } from "@/api/offers.api";

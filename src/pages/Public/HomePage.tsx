@@ -1,3 +1,4 @@
+//src/pages/Public/HomePage.tsx
 import { Link } from "react-router-dom";
 import heroBg from "../../assets/images/ticket.jpg";
 

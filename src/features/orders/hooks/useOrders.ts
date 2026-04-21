@@ -1,3 +1,4 @@
+//orders/hooks/useOrders.ts
 import { useEffect, useState } from "react";
 import {
   listOrders,
@@ -18,7 +19,7 @@ type ListParams = {
 };
 
 /* ============================================================
-   📦 LISTE DES COMMANDES
+    LISTE DES COMMANDES
 ============================================================ */
 
 export function useOrders(initial?: ListParams) {
@@ -80,7 +81,7 @@ export function useOrders(initial?: ListParams) {
 }
 
 /* ============================================================
-   🧾 DÉTAIL D’UNE COMMANDE
+    DÉTAIL D’UNE COMMANDE
 ============================================================ */
 
 export function useOrderDetail(id?: number) {

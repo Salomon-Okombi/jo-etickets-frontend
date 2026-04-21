@@ -1,3 +1,4 @@
+//src/layouts/AdminLayout.tsx
 import React from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
@@ -17,7 +18,7 @@ export default function AdminLayout() {
 
   function handleLogout() {
     logout();
-    showToast("Déconnexion réussie ✅", "success");
+    showToast("Déconnexion réussie ", "success");
   }
 
   const navClass = ({ isActive }: { isActive: boolean }) =>

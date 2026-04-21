@@ -1,3 +1,4 @@
+//paniers.server.api
 import  api  from "@/api/axiosClient";
 
 export type ServerCartLine = {

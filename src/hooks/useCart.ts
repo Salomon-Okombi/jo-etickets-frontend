@@ -1,3 +1,4 @@
+//src/hooks/useCart.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addToCart,
@@ -15,7 +16,7 @@ import type { Cart, CartLine } from "@/types/carts";
 type Status = "idle" | "loading" | "success" | "error";
 
 /* ============================================================
-   🛒 HOOK PANIER
+    HOOK PANIER
 ============================================================ */
 
 export default function useCart() {

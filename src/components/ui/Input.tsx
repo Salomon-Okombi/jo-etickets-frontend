@@ -9,7 +9,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 /**
- * ✅ Champ de saisie réutilisable
+ * Champ de saisie réutilisable
  * Exemple :
  * <Input label="Email" type="email" placeholder="ex: user@mail.com" />
  */

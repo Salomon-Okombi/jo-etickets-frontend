@@ -1,3 +1,4 @@
+//offers/api.ts
 import api from "./axiosClient";
 import type {
   Offer,

@@ -1,4 +1,4 @@
-// src/utils/totals.ts
+// src/features/cart/utils/totals.ts
 
 import type { Cart, CartLine } from "@/types/carts";
 import type { Offer } from "@/types/offers";

@@ -1,3 +1,4 @@
+//src/pages/Client/CheckoutPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getActiveServerCart } from "@/api/paniers.server.api";

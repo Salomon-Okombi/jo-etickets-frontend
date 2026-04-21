@@ -13,5 +13,4 @@ export function useAuth() {
   return ctx;
 }
 
-// Je garde aussi un export par défaut pour autoriser: import useAuth from "@/hooks/useAuth"
 export default useAuth;
