@@ -1,5 +1,5 @@
 //src/pages/Users/UserAdminDetail.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { deleteUser, getUser, updateUser } from "@/api/users.api";
 import type { User } from "@/types/users";

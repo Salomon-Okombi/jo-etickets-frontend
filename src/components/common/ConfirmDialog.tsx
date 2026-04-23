@@ -1,5 +1,3 @@
-// src/components/common/ConfirmDialog.tsx
-import React from "react";
 import Button from "@/components/ui/Button";
 
 export interface ConfirmDialogProps {
@@ -30,22 +28,19 @@ export default function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-md rounded-2xl bg-base-100 p-6 shadow-xl">
-        <h2 className="text-lg font-semibold mb-2">{title}</h2>
+        <h2 className="mb-2 text-lg font-semibold">{title}</h2>
+
         {description && (
-          <p className="text-sm text-base-content/80 mb-4 whitespace-pre-line">
+          <p className="mb-4 whitespace-pre-line text-sm text-base-content/80">
             {description}
           </p>
         )}
 
-        <div className="flex justify-end gap-3 mt-4">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={onCancel}
-            disabled={busy}
-          >
+        <div className="mt-4 flex justify-end gap-3">
+          <Button variant="outline" type="button" onClick={onCancel} disabled={busy}>
             {cancelText}
           </Button>
+
           <Button
             variant="primary"
             tone={confirmTone === "danger" ? "danger" : "default"}
@@ -60,3 +55,4 @@ export default function ConfirmDialog({
     </div>
   );
 }
+``

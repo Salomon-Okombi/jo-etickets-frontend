@@ -1,5 +1,3 @@
-//src/layouts/AdminLayout.tsx
-import React from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
 import useToast from "@/hooks/useToast";
@@ -79,4 +77,3 @@ export default function AdminLayout() {
     </div>
   );
 }
-``

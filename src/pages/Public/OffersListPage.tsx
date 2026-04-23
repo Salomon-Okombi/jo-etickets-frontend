@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.api";
 
 function kindLabel(code: string) {

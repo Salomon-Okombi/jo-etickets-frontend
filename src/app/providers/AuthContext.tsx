@@ -1,5 +1,5 @@
 // src/app/providers/AuthContext.tsx
-import React, { createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 import type { User } from "@/types/auth";
 
 export interface AuthContextType {

@@ -1,5 +1,5 @@
 //src/pages/Users/UserAdminCreate.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createUser } from "@/api/users.api";
 import "@/styles/admin.css";

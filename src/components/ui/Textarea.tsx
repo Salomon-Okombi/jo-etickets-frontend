@@ -1,5 +1,5 @@
 // src/components/ui/Textarea.tsx
-import React, { forwardRef, type TextareaHTMLAttributes } from "react";
+import { forwardRef, type TextareaHTMLAttributes } from "react";
 import clsx from "clsx";
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {

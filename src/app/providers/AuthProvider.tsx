@@ -1,5 +1,5 @@
 //app/providers/AuthProvider.tsx
-import React, { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 import type { User } from "@/types/auth";
 import {
   getProfile,

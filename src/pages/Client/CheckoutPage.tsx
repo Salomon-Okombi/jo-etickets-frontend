@@ -1,5 +1,4 @@
-//src/pages/Client/CheckoutPage.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getActiveServerCart } from "@/api/paniers.server.api";
 import { createOrder } from "@/api/orders.api";
@@ -22,7 +21,6 @@ export default function CheckoutPage() {
   const [paying, setPaying] = useState(false);
 
   const [order, setOrder] = useState<any>(null);
-  const [paiement, setPaiement] = useState<any>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +48,10 @@ export default function CheckoutPage() {
 
   const items = useMemo(() => {
     if (!serverCart) return [];
-    return (serverCart.lignes || []).map((l: any) => ({ offre: l.offre, quantite: l.quantite }));
+    return (serverCart.lignes || []).map((l: any) => ({
+      offre: l.offre,
+      quantite: l.quantite,
+    }));
   }, [serverCart]);
 
   const canCreateOrder = items.length > 0;
@@ -92,7 +93,6 @@ export default function CheckoutPage() {
           cvcMasked: "***",
         },
       });
-      setPaiement(p);
 
       await confirmPaiement(p.id, {
         success,
@@ -129,16 +129,35 @@ export default function CheckoutPage() {
       </div>
 
       {error ? (
-        <div style={{ marginTop: "1rem", padding: "0.75rem 1rem", border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.08)", borderRadius: 12 }}>
+        <div
+          style={{
+            marginTop: "1rem",
+            padding: "0.75rem 1rem",
+            border: "1px solid rgba(220,38,38,0.35)",
+            background: "rgba(220,38,38,0.08)",
+            borderRadius: 12,
+          }}
+        >
           {error}
         </div>
       ) : null}
 
-      <div style={{ marginTop: "1rem", border: "1px solid rgba(15,23,42,0.12)", borderRadius: 14, padding: "1rem" }}>
+      <div
+        style={{
+          marginTop: "1rem",
+          border: "1px solid rgba(15,23,42,0.12)",
+          borderRadius: 14,
+          padding: "1rem",
+        }}
+      >
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Récapitulatif</div>
+
         <div style={{ display: "grid", gap: "0.6rem" }}>
           {serverCart.lignes.map((l: any) => (
-            <div key={l.id} style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+            <div
+              key={l.id}
+              style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}
+            >
               <div style={{ fontWeight: 700 }}>Offre #{l.offre}</div>
               <div style={{ fontWeight: 900 }}>
                 x{l.quantite} — {fmtMoney(l.sous_total)}
@@ -147,7 +166,13 @@ export default function CheckoutPage() {
           ))}
         </div>
 
-        <div style={{ marginTop: "0.8rem", display: "flex", justifyContent: "space-between" }}>
+        <div
+          style={{
+            marginTop: "0.8rem",
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
           <div style={{ fontWeight: 900 }}>Total</div>
           <div style={{ fontWeight: 900 }}>{fmtMoney(serverCart.montant_total)}</div>
         </div>
@@ -159,8 +184,15 @@ export default function CheckoutPage() {
             {creating ? "Création…" : "Créer la commande"}
           </button>
         ) : (
-          <div style={{ padding: "0.6rem 0.9rem", border: "1px solid rgba(15,23,42,0.12)", borderRadius: 12 }}>
-            Commande: <strong>{order.numero_commande}</strong> — Statut: <strong>{order.statut}</strong>
+          <div
+            style={{
+              padding: "0.6rem 0.9rem",
+              border: "1px solid rgba(15,23,42,0.12)",
+              borderRadius: 12,
+            }}
+          >
+            Commande: <strong>{order.numero_commande}</strong> — Statut:{" "}
+            <strong>{order.statut}</strong>
           </div>
         )}
 
@@ -170,7 +202,14 @@ export default function CheckoutPage() {
       </div>
 
       {order ? (
-        <div style={{ marginTop: "1.2rem", border: "1px solid rgba(15,23,42,0.12)", borderRadius: 14, padding: "1rem" }}>
+        <div
+          style={{
+            marginTop: "1.2rem",
+            border: "1px solid rgba(15,23,42,0.12)",
+            borderRadius: 14,
+            padding: "1rem",
+          }}
+        >
           <div style={{ fontWeight: 900, marginBottom: 10 }}>Informations bancaires (mock)</div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.8rem" }}>
@@ -178,14 +217,21 @@ export default function CheckoutPage() {
               <div style={{ opacity: 0.7, marginBottom: 4 }}>Nom sur la carte</div>
               <input value={cardName} onChange={(e) => setCardName(e.target.value)} />
             </div>
+
             <div>
               <div style={{ opacity: 0.7, marginBottom: 4 }}>Numéro de carte</div>
-              <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="4242 4242 4242 4242" />
+              <input
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value)}
+                placeholder="4242 4242 4242 4242"
+              />
             </div>
+
             <div>
               <div style={{ opacity: 0.7, marginBottom: 4 }}>Expiration</div>
               <input value={cardExp} onChange={(e) => setCardExp(e.target.value)} placeholder="MM/AA" />
             </div>
+
             <div>
               <div style={{ opacity: 0.7, marginBottom: 4 }}>CVC</div>
               <input value={cardCvc} onChange={(e) => setCardCvc(e.target.value)} placeholder="123" />
@@ -203,6 +249,7 @@ export default function CheckoutPage() {
             <button onClick={onPay} disabled={paying}>
               {paying ? "Paiement…" : "Valider le paiement (mock)"}
             </button>
+
             <Link to="/mon-espace/billets" style={{ textDecoration: "none" }}>
               Mes billets
             </Link>

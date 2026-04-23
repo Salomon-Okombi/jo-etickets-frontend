@@ -1,5 +1,3 @@
-//features/catalog/components/EventCard.tsx
-import React from "react";
 import { Link } from "react-router-dom";
 import type { Event } from "@/api/events.api";
 import Badge from "@/components/ui/Badge";
@@ -11,11 +9,7 @@ type Props = {
   showCTA?: boolean;
 };
 
-export default function EventCard({
-  event,
-  className,
-  showCTA = true,
-}: Props) {
+export default function EventCard({ event, className, showCTA = true }: Props) {
   const fallbackImage = "/images/event-default.jpg";
 
   const imageSrc =
@@ -46,7 +40,7 @@ export default function EventCard({
           <h3 className="card-title text-base sm:text-lg leading-snug">
             {event.nom_evenement}
           </h3>
-          {event.discipline && <Badge>{event.discipline}</Badge>}
+          {event.discipline ? <Badge>{event.discipline}</Badge> : null}
         </div>
 
         <div className="text-sm opacity-80 space-y-1">
@@ -64,21 +58,19 @@ export default function EventCard({
           </p>
         </div>
 
-        {event.description_courte && (
+        {event.description_courte ? (
           <p className="text-sm line-clamp-3 opacity-90">
             {event.description_courte}
           </p>
-        )}
+        ) : null}
 
-        {showCTA && (
+        {showCTA ? (
           <div className="card-actions justify-end pt-2">
             <Link to={`/evenements/${event.id}`}>
-              <Button variant="primary">
-                Voir l’événement
-              </Button>
+              <Button variant="primary">Voir l’événement</Button>
             </Link>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

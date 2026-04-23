@@ -1,5 +1,5 @@
 // src/app/providers/UIProvider.tsx
-import React, {
+import {
   createContext,
   useCallback,
   useContext,

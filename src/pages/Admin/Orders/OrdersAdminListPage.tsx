@@ -1,5 +1,4 @@
-// src/pages/Admin/Orders/OrdersAdminListPage.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Order, OrderStatus } from "@/types/orders";
 import { listOrders } from "@/api/orders.api";
@@ -47,27 +46,17 @@ export default function OrdersAdminListPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
-  const [ordering, setOrdering] =
-    useState<OrderingValue>("-date_creation");
+  // Valeurs fixes (pas d'UI pour les modifier dans ce composant)
+  const pageSize = 10;
+  const statusFilter: StatusFilter = "";
+  const ordering: OrderingValue = "-date_creation";
+  const search = "";
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(count / pageSize)),
     [count, pageSize]
   );
-
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      setPage(1);
-      setSearch(searchInput.trim());
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [searchInput]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -115,7 +104,7 @@ export default function OrdersAdminListPage() {
         </div>
       </div>
 
-      {error && <div className="admin-alert">{error}</div>}
+      {error ? <div className="admin-alert">{error}</div> : null}
 
       <div className="admin-table-wrap">
         {loading ? (
@@ -135,29 +124,23 @@ export default function OrdersAdminListPage() {
                   <th className="admin-td-right">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {rows.map((o) => (
                   <tr key={o.id}>
                     <td>{o.numero_commande}</td>
                     <td>{o.utilisateur_nom}</td>
                     <td className="admin-td-center">
-                      <span className={badgeClass(o.statut)}>
-                        {o.statut}
-                      </span>
+                      <span className={badgeClass(o.statut)}>{o.statut}</span>
                     </td>
-                    <td className="admin-td-right">
-                      {fmtMoney(o.total)}
-                    </td>
+                    <td className="admin-td-right">{fmtMoney(o.total)}</td>
                     <td className="admin-td-muted">
                       Créée : {fmtDate(o.date_creation)}
                       <br />
                       Payée : {fmtDate(o.date_paiement)}
                     </td>
                     <td className="admin-td-right">
-                      <Link
-                        className="admin-btn admin-btn--xs"
-                        to={`/admin/commandes/${o.id}`}
-                      >
+                      <Link className="admin-btn admin-btn--xs" to={`/admin/commandes/${o.id}`}>
                         Détail
                       </Link>
                     </td>
@@ -166,9 +149,29 @@ export default function OrdersAdminListPage() {
               </tbody>
             </table>
 
-            <div className="admin-table-footer">
-              Page {page} / {totalPages}
+            <div className="admin-table-footer" style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+              <div className="admin-text-muted">
+                Page {page} / {totalPages}
+              </div>
+
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button
+                  className="admin-btn admin-btn--sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  ←
+                </button>
+                <button
+                  className="admin-btn admin-btn--sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  →
+                </button>
+              </div>
             </div>
+
           </div>
         )}
       </div>

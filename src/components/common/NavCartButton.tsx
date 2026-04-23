@@ -1,5 +1,3 @@
-//NavCartButton.tsx
-import React from "react";
 import { Link } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/features/cart/useCart";
@@ -11,10 +9,16 @@ export default function NavCartButton() {
     <Link
       to="/panier"
       className="main-header__cta main-header__cta--outline"
-      style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8 }}
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+      }}
     >
       <ShoppingCart size={18} />
       Panier
+
       {count > 0 ? (
         <span
           style={{

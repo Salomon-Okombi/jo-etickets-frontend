@@ -1,5 +1,5 @@
 // src/pages/Auth/LoginPage.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginUser, type JwtPair, storeTokens, getProfile } from "@/api/auth.api";
 import { normalizeUser } from "@/utils/authNormalize";

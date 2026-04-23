@@ -1,5 +1,5 @@
 //src/pages/Admin/Events/EventAdminEdit.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import api from "@/api/axiosClient";
 import "@/styles/admin.css";

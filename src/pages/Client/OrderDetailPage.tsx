@@ -1,5 +1,5 @@
 //src/pages/Client/OrderDetailPage.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { Order } from "@/types/orders";
 import { getOrder, payOrder } from "@/api/orders.api";

@@ -1,5 +1,3 @@
-//src/layouts/MainLayout.tsx
-import React from "react";
 import { Outlet } from "react-router-dom";
 import MainHeader from "./MainHeader";
 import MainFooter from "./MainFooter";

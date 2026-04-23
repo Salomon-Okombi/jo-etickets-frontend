@@ -1,5 +1,5 @@
 // src/components/common/SearchBar.tsx
-import React, { useState } from "react";
+import  { useState } from "react";
 import { Search, X } from "lucide-react";
 
 interface SearchBarProps {

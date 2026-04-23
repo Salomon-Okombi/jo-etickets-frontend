@@ -1,5 +1,5 @@
 // src/pages/Admin/Offers/OfferAdminEdit.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getOffer, updateOffer, deleteOffer } from "@/api/offers.api";
 import { listEvents, type Event } from "@/api/events.api";

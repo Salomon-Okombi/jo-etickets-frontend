@@ -1,4 +1,3 @@
-//src/utils/formats.ts
 import { DEFAULT_CURRENCY, DEFAULT_LOCALE } from "./constants";
 
 /** Nombre → prix (EUR par défaut) */
@@ -52,7 +51,9 @@ export function formatDateTime(iso?: string | null, locale: string = DEFAULT_LOC
 /** Tronquer une chaîne proprement */
 export function truncate(text: string, max = 120): string {
   if (!text) return "";
-  return text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+  return text.length <= max
+    ? text
+    : `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
 /** Pluriel simple FR (ex: "1 billet", "2 billets") */
@@ -70,23 +71,22 @@ export function safeToNumber(v: string | number | null | undefined, fallback = 0
   return fallback;
 }
 
-/** Parse avec locale optionnelle (ex: "1 234,56") */
-export function parseNumber(input: string, locale: string = DEFAULT_LOCALE): number | null {
+/** Parse simple (ex: "1 234,56") -> 1234.56 */
+export function parseNumber(input: string): number | null {
   if (!input) return null;
-  // Heuristique simple FR : remplacer espace insécable et virgule
   const normalized = input.replace(/\s| /g, "").replace(",", ".");
   const n = Number(normalized);
   return Number.isFinite(n) ? n : null;
 }
 
 /* ------------------------------------------------------------------
-   🔹 Aliases pour compatibilité avec StatsPage et d'autres fichiers
+   Aliases pour compatibilité
 ------------------------------------------------------------------ */
 
-/** Alias de formatPrice (nom attendu dans StatsPage) */
+/** Alias de formatPrice (nom attendu dans StatsPage et ailleurs) */
 export const formatCurrency = formatPrice;
 
-/** Formate un nombre brut avec séparateur de milliers (nom attendu dans StatsPage) */
+/** Formate un nombre brut avec séparateur de milliers */
 export function formatNumber(value: number | string, locale: string = DEFAULT_LOCALE): string {
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) return "—";

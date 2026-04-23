@@ -1,5 +1,5 @@
 //src/pages/Public/CartPage.tsx
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "@/features/cart/useCart";
 
