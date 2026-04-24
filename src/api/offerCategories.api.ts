@@ -24,13 +24,10 @@ function unwrap<T>(data: any): T[] {
   return [];
 }
 
-export async function listOfferCategories(): Promise<OfferCategory[] | Paginated<OfferCategory>> {
-  const { data } = await api.get<OfferCategory[] | Paginated<OfferCategory>>("/offres/categories/");
-  return data;
-}
 
-// Optionnel: si tu préfères que la page reçoive TOUJOURS un array
-export async function listOfferCategoriesArray(): Promise<OfferCategory[]> {
-  const { data } = await api.get<OfferCategory[] | Paginated<OfferCategory>>("/offres/categories/");
+export async function listOfferCategories(): Promise<OfferCategory[]> {
+  const { data } = await api.get<OfferCategory[] | Paginated<OfferCategory>>(
+    "/offres/categories/"
+  );
   return unwrap<OfferCategory>(data);
 }

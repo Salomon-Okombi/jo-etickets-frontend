@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api from "@/utils/http";
 import { useCart } from "@/features/cart/useCart";
 import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.api";
@@ -48,10 +48,20 @@ function formatPrice(raw: number | string) {
   return safe.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 }
 
+function unwrap<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
+}
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const eventId = Number(id);
+
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const offersRef = useRef<HTMLDivElement | null>(null);
 
   const { addItem } = useCart();
 
@@ -63,6 +73,8 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<number | null>(null);
 
+  const reserveRequested = searchParams.get("reserve") === "1";
+
   useEffect(() => {
     let mounted = true;
 
@@ -73,7 +85,7 @@ export default function EventDetailPage() {
 
         const [evRes, catRows, offersRes] = await Promise.all([
           api.get<EventDetail>(`/evenements/${eventId}/`),
-          listOfferCategories(),
+          listOfferCategories(), // doit renvoyer un array (voir note plus bas)
           api.get<Paginated<Offer> | Offer[]>(`/offres/`, {
             params: { evenement: eventId, statut: "ACTIVE" },
           }),
@@ -82,18 +94,8 @@ export default function EventDetailPage() {
         if (!mounted) return;
 
         setEvent(evRes.data);
-
-        // catRows peut être un array OU un objet paginé selon ton backend
-        const catList = Array.isArray(catRows)
-          ? catRows
-          : (catRows as any)?.results ?? [];
-        setCats(catList);
-
-        const rawOffers = offersRes.data;
-        const offerList = Array.isArray(rawOffers)
-          ? rawOffers
-          : rawOffers.results ?? [];
-        setOffers(offerList);
+        setCats(unwrap<OfferCategory>(catRows));
+        setOffers(unwrap<Offer>(offersRes.data));
       } catch {
         if (!mounted) return;
         setError("Impossible de charger le détail et les offres.");
@@ -114,18 +116,23 @@ export default function EventDetailPage() {
     };
   }, [eventId]);
 
-  // Map "CODE_CATEGORIE" -> offre correspondante
+  // Scroll automatique si on vient de “Ajouter au panier” (reserve=1)
+  useEffect(() => {
+    if (!reserveRequested) return;
+    if (!offersRef.current) return;
+    offersRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [reserveRequested, loading]);
+
   const offersByCategoryCode = useMemo(() => {
     const map = new Map<string, Offer>();
     for (const o of offers) {
-      const code = String(o.type_offre ?? "").toUpperCase(); // compat backend
+      const code = String(o.type_offre ?? "").toUpperCase();
       if (!code) continue;
       map.set(code, o);
     }
     return map;
   }, [offers]);
 
-  // On n’affiche que les catégories qui ont réellement une offre ACTIVE pour cet événement
   const availableCats = useMemo(() => {
     const sorted = [...cats].sort(
       (a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)
@@ -145,7 +152,6 @@ export default function EventDetailPage() {
       setAdding(offer.id);
       setError(null);
 
-      // Ajout au panier local : l’utilisateur a choisi explicitement le type/catégorie
       addItem({
         offre: offer.id,
         quantite: 1,
@@ -159,6 +165,12 @@ export default function EventDetailPage() {
       setError("Impossible d’ajouter au panier.");
     } finally {
       setAdding(null);
+    }
+  }
+
+  function handleReserveClick() {
+    if (offersRef.current) {
+      offersRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
 
@@ -200,10 +212,20 @@ export default function EventDetailPage() {
           </div>
 
           <p className="event-detail__description">{event.description_longue}</p>
+
+          <div style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              className="event-card__cta"
+              onClick={handleReserveClick}
+            >
+              Réserver
+            </button>
+          </div>
         </div>
       </section>
 
-      <section className="event-detail__offers">
+      <section className="event-detail__offers" ref={offersRef}>
         <div className="event-detail__offers-inner">
           {error ? (
             <div className="event-detail__state event-detail__state--error">{error}</div>
@@ -223,7 +245,7 @@ export default function EventDetailPage() {
 
           <h2 className="event-detail__offers-title">Choisir une offre</h2>
           <p className="event-detail__offers-subtitle">
-            Sélectionne le type d’offre (Solo, Duo, Famille, ou toute nouvelle catégorie ajoutée par l’admin).
+            Sélectionne le type d’offre. Le visiteur choisit l’offre (SOLO, DUO, FAMILLE, ou toute catégorie ajoutée par l’admin).
           </p>
 
           {availableCats.length === 0 ? (

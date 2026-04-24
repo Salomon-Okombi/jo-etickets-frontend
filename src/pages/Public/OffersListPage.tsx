@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.api";
 
 function kindLabel(code: string) {
@@ -7,13 +8,9 @@ function kindLabel(code: string) {
   return c;
 }
 
-function unwrapArray<T>(data: any): T[] {
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.results)) return data.results;
-  return [];
-}
-
 export default function OffersListPage() {
+  const navigate = useNavigate();
+
   const [cats, setCats] = useState<OfferCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,13 +23,13 @@ export default function OffersListPage() {
         setLoading(true);
         setError(null);
 
-        const data = await listOfferCategories();
+        const rows = await listOfferCategories(); // maintenant: array garanti
         if (!mounted) return;
 
-        setCats(unwrapArray<OfferCategory>(data));
-      } catch (e: any) {
+        setCats(rows);
+      } catch {
         if (!mounted) return;
-        setError(e?.message ?? "Impossible de charger les catégories d’offres.");
+        setError("Impossible de charger les catégories d’offres.");
         setCats([]);
       } finally {
         if (mounted) setLoading(false);
@@ -79,7 +76,9 @@ export default function OffersListPage() {
               {sorted.map((c) => (
                 <article key={c.id} className="offer-card">
                   <header className="offer-card__header">
-                    <span className={`offer-card__badge offer-card__badge--${kindLabel(c.code).toLowerCase()}`}>
+                    <span
+                      className={`offer-card__badge offer-card__badge--${kindLabel(c.code).toLowerCase()}`}
+                    >
                       {kindLabel(c.code)}
                     </span>
                     <h2 className="offer-card__title">{c.nom}</h2>
@@ -101,8 +100,12 @@ export default function OffersListPage() {
                   </dl>
 
                   <div className="offer-card__actions">
-                    <button type="button" className="offer-card__cta" disabled>
-                      Choisir au moment de la réservation
+                    <button
+                      type="button"
+                      className="offer-card__cta"
+                      onClick={() => navigate(`/evenements?cat=${encodeURIComponent(c.code)}`)}
+                    >
+                      Voir les événements
                     </button>
                   </div>
                 </article>
