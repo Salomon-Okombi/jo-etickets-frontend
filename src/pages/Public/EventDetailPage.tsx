@@ -156,6 +156,7 @@ export default function EventDetailPage() {
   }
 
   if (loading) return <div className="event-detail__state">Chargement…</div>;
+
   if (!event) {
     return (
       <div className="event-detail__state event-detail__state--error">
@@ -165,7 +166,9 @@ export default function EventDetailPage() {
   }
 
   const imageSrc =
-    event.image_url && event.image_url.trim() !== "" ? event.image_url : FALLBACK_IMAGE;
+    event.image_url && event.image_url.trim() !== ""
+      ? event.image_url
+      : FALLBACK_IMAGE;
 
   return (
     <div className="event-detail">
@@ -217,9 +220,7 @@ export default function EventDetailPage() {
           </p>
 
           {availableCats.length === 0 ? (
-            <div className="event-detail__state">
-              Aucune offre disponible pour cet événement.
-            </div>
+            <div className="event-detail__state">Aucune offre disponible pour cet événement.</div>
           ) : (
             <div className="event-detail__offers-grid">
               {availableCats.map((c) => {
@@ -278,4 +279,3 @@ export default function EventDetailPage() {
     </div>
   );
 }
-``

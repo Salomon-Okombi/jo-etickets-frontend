@@ -19,8 +19,10 @@ export default function OffersListPage() {
       try {
         setLoading(true);
         setError(null);
+
         const rows = await listOfferCategories();
         if (!mounted) return;
+
         setCats(rows);
       } catch {
         if (!mounted) return;
@@ -37,7 +39,9 @@ export default function OffersListPage() {
   }, []);
 
   const sorted = useMemo(() => {
-    return [...cats].sort((a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0));
+    return [...cats].sort(
+      (a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)
+    );
   }, [cats]);
 
   return (
@@ -46,28 +50,41 @@ export default function OffersListPage() {
         <div className="offers-page__hero-inner">
           <h1 className="offers-page__title">Offres</h1>
           <p className="offers-page__subtitle">
-            Cette page présente les catégories d’offres disponibles. Les catégories sont gérées par l’administration et peuvent évoluer.
+            Cette page présente les catégories d’offres disponibles. Les catégories
+            sont gérées par l’administration et peuvent évoluer.
           </p>
         </div>
       </section>
 
       <section className="offers-page__content">
         <div className="offers-page__inner">
-          {loading && <div className="offers-page__state">Chargement…</div>}
-          {error && !loading && <div className="offers-page__state offers-page__state--error">{error}</div>}
+          {loading ? (
+            <div className="offers-page__state">Chargement…</div>
+          ) : null}
 
-          {!loading && !error && sorted.length === 0 && (
+          {error && !loading ? (
+            <div className="offers-page__state offers-page__state--error">
+              {error}
+            </div>
+          ) : null}
+
+          {!loading && !error && sorted.length === 0 ? (
             <div className="offers-page__state">Aucune catégorie d’offre.</div>
-          )}
+          ) : null}
 
-          {!loading && !error && sorted.length > 0 && (
+          {!loading && !error && sorted.length > 0 ? (
             <div className="offers-page__grid">
               {sorted.map((c) => (
                 <article key={c.id} className="offer-card">
                   <header className="offer-card__header">
-                    <span className={`offer-card__badge offer-card__badge--${kindLabel(c.code).toLowerCase()}`}>
+                    <span
+                      className={`offer-card__badge offer-card__badge--${kindLabel(
+                        c.code
+                      ).toLowerCase()}`}
+                    >
                       {kindLabel(c.code)}
                     </span>
+
                     <h2 className="offer-card__title">{c.nom}</h2>
                   </header>
 
@@ -94,7 +111,7 @@ export default function OffersListPage() {
                 </article>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
