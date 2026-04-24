@@ -82,11 +82,18 @@ export default function EventDetailPage() {
         if (!mounted) return;
 
         setEvent(evRes.data);
-        setCats(catRows);
+
+        // catRows peut être un array OU un objet paginé selon ton backend
+        const catList = Array.isArray(catRows)
+          ? catRows
+          : (catRows as any)?.results ?? [];
+        setCats(catList);
 
         const rawOffers = offersRes.data;
-        const list = Array.isArray(rawOffers) ? rawOffers : rawOffers.results ?? [];
-        setOffers(list);
+        const offerList = Array.isArray(rawOffers)
+          ? rawOffers
+          : rawOffers.results ?? [];
+        setOffers(offerList);
       } catch {
         if (!mounted) return;
         setError("Impossible de charger le détail et les offres.");

@@ -7,6 +7,12 @@ function kindLabel(code: string) {
   return c;
 }
 
+function unwrapArray<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
+}
+
 export default function OffersListPage() {
   const [cats, setCats] = useState<OfferCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,13 +26,14 @@ export default function OffersListPage() {
         setLoading(true);
         setError(null);
 
-        const rows = await listOfferCategories();
+        const data = await listOfferCategories();
         if (!mounted) return;
 
-        setCats(rows);
-      } catch {
+        setCats(unwrapArray<OfferCategory>(data));
+      } catch (e: any) {
         if (!mounted) return;
-        setError("Impossible de charger les catégories d’offres.");
+        setError(e?.message ?? "Impossible de charger les catégories d’offres.");
+        setCats([]);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -50,22 +57,17 @@ export default function OffersListPage() {
         <div className="offers-page__hero-inner">
           <h1 className="offers-page__title">Offres</h1>
           <p className="offers-page__subtitle">
-            Cette page présente les catégories d’offres disponibles. Les catégories
-            sont gérées par l’administration et peuvent évoluer.
+            Cette page présente les catégories d’offres disponibles. Les catégories sont gérées par l’administration et peuvent évoluer.
           </p>
         </div>
       </section>
 
       <section className="offers-page__content">
         <div className="offers-page__inner">
-          {loading ? (
-            <div className="offers-page__state">Chargement…</div>
-          ) : null}
+          {loading ? <div className="offers-page__state">Chargement…</div> : null}
 
           {error && !loading ? (
-            <div className="offers-page__state offers-page__state--error">
-              {error}
-            </div>
+            <div className="offers-page__state offers-page__state--error">{error}</div>
           ) : null}
 
           {!loading && !error && sorted.length === 0 ? (
@@ -77,14 +79,9 @@ export default function OffersListPage() {
               {sorted.map((c) => (
                 <article key={c.id} className="offer-card">
                   <header className="offer-card__header">
-                    <span
-                      className={`offer-card__badge offer-card__badge--${kindLabel(
-                        c.code
-                      ).toLowerCase()}`}
-                    >
+                    <span className={`offer-card__badge offer-card__badge--${kindLabel(c.code).toLowerCase()}`}>
                       {kindLabel(c.code)}
                     </span>
-
                     <h2 className="offer-card__title">{c.nom}</h2>
                   </header>
 
