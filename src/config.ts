@@ -33,7 +33,7 @@ export const SSE_URL: string =
   import.meta.env.VITE_SSE_URL ?? `${API_BASE_URL.replace(/\/api$/, "")}/sse/`;
 
 /* ------------------------------------------------------------------
-   🔐 AUTHENTIFICATION
+   AUTHENTIFICATION
 ------------------------------------------------------------------ */
 
 /** Clé pour stocker le token JWT dans localStorage */
@@ -46,7 +46,7 @@ export const REFRESH_TOKEN_STORAGE_KEY = "refresh_token";
 export const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24h
 
 /* ------------------------------------------------------------------
-   💅 INTERFACE UTILISATEUR
+   INTERFACE UTILISATEUR
 ------------------------------------------------------------------ */
 
 /** Taille par défaut de la pagination */
@@ -63,13 +63,13 @@ export const THEMES = ["light", "dark", "cupcake", "corporate", "emerald"] as co
 export type Theme = (typeof THEMES)[number];
 
 /* ------------------------------------------------------------------
-   💶 FORMATAGE & LOCALE
+    FORMATAGE & LOCALE
 ------------------------------------------------------------------ */
 export const DEFAULT_LOCALE = "fr-FR";
 export const DEFAULT_CURRENCY = "EUR";
 
 /* ------------------------------------------------------------------
-   🧭 ROUTES FRONT
+    ROUTES FRONT
 ------------------------------------------------------------------ */
 export const ROUTES = {
   home: "/",
@@ -91,7 +91,7 @@ export const ROUTES = {
 } as const;
 
 /* ------------------------------------------------------------------
-   🧠 MÉTADONNÉES APP
+    MÉTADONNÉES APP
 ------------------------------------------------------------------ */
 export const APP_NAME = import.meta.env.VITE_APP_NAME ?? "JO eTicket";
 export const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "1.0.0";
@@ -100,7 +100,7 @@ export const APP_DESCRIPTION =
   "Application de gestion de billets électroniques pour les Jeux Olympiques.";
 
 /* ------------------------------------------------------------------
-   ✅ OBJET DE CONFIGURATION CENTRALISÉ
+    OBJET DE CONFIGURATION CENTRALISÉ
 ------------------------------------------------------------------ */
 export const config = {
   app: {

@@ -1,5 +1,5 @@
 // src/app/providers/RealtimeProvider.tsx
-import {
+/*import {
   createContext,
   useCallback,
   useContext,
@@ -41,7 +41,7 @@ type Props = {
 
 const DEFAULT_WS_PATH = "/ws/";
 
-// ✅ FLAG GLOBAL
+// FLAG GLOBAL
 const REALTIME_ENABLED = import.meta.env.VITE_REALTIME_ENABLED !== "false";
 
 export default function RealtimeProvider({
@@ -178,7 +178,7 @@ export default function RealtimeProvider({
         setStatus("disconnected");
         clearHeartbeat();
         scheduleReconnect();
-      };*/
+      };
     } catch (e: any) {
       setError(String(e?.message ?? e));
       setStatus("disconnected");
@@ -255,4 +255,4 @@ export function useRealtime() {
   const ctx = useContext(RealtimeContext);
   if (!ctx) throw new Error("useRealtime must be used within RealtimeProvider");
   return ctx;
-}
+}*/
