@@ -1,5 +1,5 @@
 // src/app/providers/RealtimeProvider.tsx
-/*import {
+import {
   createContext,
   useCallback,
   useContext,
@@ -41,9 +41,10 @@ type Props = {
 
 const DEFAULT_WS_PATH = "/ws/";
 
-// FLAG GLOBAL
-const REALTIME_ENABLED = import.meta.env.VITE_REALTIME_ENABLED !== "false";
-
+//  FLAG GLOBAL
+//const REALTIME_ENABLED = import.meta.env.VITE_REALTIME_ENABLED !== "false";
+const REALTIME_ENABLED = false;
+``
 export default function RealtimeProvider({
   children,
   url,
@@ -155,7 +156,7 @@ export default function RealtimeProvider({
     setError(null);
 
     try {
-      /*const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -255,4 +256,4 @@ export function useRealtime() {
   const ctx = useContext(RealtimeContext);
   if (!ctx) throw new Error("useRealtime must be used within RealtimeProvider");
   return ctx;
-}*/
+}

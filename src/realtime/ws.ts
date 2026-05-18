@@ -1,5 +1,5 @@
 // src/realtime/ws.ts
-/*import { eventBus, type RealtimeEvent } from "./events";
+import { eventBus, type RealtimeEvent } from "./events";
 
 export interface WSClientOptions {
   url: string;             // ex: `wss://domain.tld/ws/`
@@ -103,4 +103,3 @@ export function createWSClient({
 
   return { send, disconnect };
 }
-*/
