@@ -1,58 +1,45 @@
-//src/pages/Users/UserAdminDetail.tsx
+// src/pages/Users/UserAdminDetail.tsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { deleteUser, getUser, updateUser } from "@/api/users.api";
-import type { User } from "@/types/users";
+import { getUser, updateUser, deleteUser } from "@/api/users.api";
 import "@/styles/admin.css";
 
 export default function UserAdminDetail() {
   const { id } = useParams();
-  const userId = Number(id);
   const navigate = useNavigate();
-
-  const [user, setUser] = useState<User | null>(null);
+  const userId = Number(id);
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setTypeCompte] = useState<string>("CLIENT");
-  const [statut, setStatut] = useState<string>("ACTIF");
-  const [password, setPassword] = useState(""); // optionnel
+  const [role, setRole] = useState<"UTILISATEUR" | "ADMIN">("UTILISATEUR");
+  const [estBloque, setEstBloque] = useState<boolean>(false);
+  const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    async function load() {
+    async function loadUser() {
       try {
         setLoading(true);
-        setError(null);
+        const u = await getUser(userId);
 
-        const data = await getUser(userId);
-        if (controller.signal.aborted) return;
+        setUsername(u.username ?? "");
+        setEmail(u.email ?? "");
+        setRole((u.role as "UTILISATEUR" | "ADMIN") ?? "UTILISATEUR");
 
-        setUser(data);
-        setUsername(data.username ?? "");
-        setEmail(data.email ?? "");
-        setTypeCompte(data.role ?? "UTILISATEUR");
-        setStatut(data.statut ?? "ACTIF");
-      } catch (err: any) {
-        const status = err?.response?.status;
-        if (status === 404) setError("Utilisateur introuvable (404).");
-        else if (status === 401) setError("Non authentifié (401).");
-        else if (status === 403) setError("Accès refusé (403).");
-        else setError("Chargement impossible.");
-        console.error(err);
+        // ✅ CORRECTION ICI
+        setEstBloque(u.est_bloque ?? false);
+      } catch {
+        setError("Impossible de charger l’utilisateur.");
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        setLoading(false);
       }
     }
 
-    if (Number.isFinite(userId)) load();
-    return () => controller.abort();
+    if (Number.isFinite(userId)) {
+      loadUser();
+    }
   }, [userId]);
 
   async function onSave(e: React.FormEvent) {
@@ -60,28 +47,18 @@ export default function UserAdminDetail() {
     setError(null);
 
     try {
-      setSaving(true);
-
-      const payload: any = {
+      await updateUser(userId, {
         username,
         email,
         role,
-        statut,
-      };
-      if (password.trim()) payload.password = password.trim();
+        est_bloque: estBloque,
+        ...(password.trim() ? { password: password.trim() } : {}),
+      });
 
-      const updated = await updateUser(userId, payload);
-      setUser(updated);
+      alert("Utilisateur mis à jour avec succès.");
       setPassword("");
-    } catch (err: any) {
-      const status = err?.response?.status;
-      if (status === 400) setError("Données invalides (400).");
-      else if (status === 401) setError("Non authentifié (401).");
-      else if (status === 403) setError("Accès refusé (403).");
-      else setError("Sauvegarde impossible.");
-      console.error(err);
-    } finally {
-      setSaving(false);
+    } catch {
+      setError("Erreur lors de la sauvegarde.");
     }
   }
 
@@ -90,97 +67,78 @@ export default function UserAdminDetail() {
     if (!ok) return;
 
     try {
-      setDeleting(true);
       await deleteUser(userId);
-      navigate("/admin/utilisateurs", { replace: true });
-    } catch (err: any) {
-      const status = err?.response?.status;
-      if (status === 400) setError("Suppression refusée (ex: suppression de soi-même/superadmin).");
-      else if (status === 401) setError("Non authentifié (401).");
-      else if (status === 403) setError("Accès refusé (403).");
-      else setError("Suppression impossible.");
-      console.error(err);
-    } finally {
-      setDeleting(false);
+      navigate("/admin/utilisateurs");
+    } catch {
+      setError("Suppression impossible.");
     }
   }
 
-  if (loading) return <div className="admin-table-state">Chargement…</div>;
+  if (loading) {
+    return <div className="admin-table-state">Chargement…</div>;
+  }
 
   return (
     <div className="admin-page">
-      <div style={{ marginBottom: "1.2rem" }}>
-        <div className="admin-title">Détails utilisateur</div>
-        <div className="admin-subtitle">
-          Modifier / supprimer un utilisateur.
-          {user ? (
-            <span className="admin-text-muted" style={{ marginLeft: 8, fontSize: "0.85rem" }}>
-              ID #{user.id}
-            </span>
-          ) : null}
+      <div className="admin-title">Modifier utilisateur</div>
+
+      {error && <div className="admin-alert">{error}</div>}
+
+      <form onSubmit={onSave} className="admin-form">
+        <input
+          className="admin-input"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Username"
+        />
+
+        <input
+          className="admin-input"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email"
+        />
+
+        <select
+          className="admin-select"
+          value={role}
+          onChange={(e) => setRole(e.target.value as "UTILISATEUR" | "ADMIN")}
+        >
+          <option value="UTILISATEUR">UTILISATEUR</option>
+          <option value="ADMIN">ADMIN</option>
+        </select>
+
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <input
+            type="checkbox"
+            checked={estBloque}
+            onChange={(e) => setEstBloque(e.target.checked)}
+          />
+          Compte bloqué
+        </label>
+
+        <input
+          className="admin-input"
+          type="password"
+          placeholder="Nouveau mot de passe (optionnel)"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <div className="admin-actions">
+          <button className="admin-btn" type="submit">
+            Sauvegarder
+          </button>
+
+          <button
+            type="button"
+            className="admin-btn admin-btn--danger"
+            onClick={onDelete}
+          >
+            Supprimer
+          </button>
         </div>
-      </div>
-
-      {error ? <div className="admin-alert" role="alert">{error}</div> : null}
-
-      <div className="admin-table-wrap" style={{ padding: "1rem" }}>
-        <form onSubmit={onSave} style={{ display: "grid", gap: "0.9rem", maxWidth: 560 }}>
-          <div>
-            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>Username</div>
-            <input className="admin-input" value={username} onChange={(e) => setUsername(e.target.value)} />
-          </div>
-
-          <div>
-            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>Email</div>
-            <input className="admin-input" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-            <div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>Type compte</div>
-              <select className="admin-select" value={role} onChange={(e) => setTypeCompte(e.target.value)}>
-                <option value="CLIENT">CLIENT</option>
-                <option value="ADMIN">ADMIN</option>
-              </select>
-            </div>
-
-            <div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>Statut</div>
-              <select className="admin-select" value={statut} onChange={(e) => setStatut(e.target.value)}>
-                <option value="ACTIF">ACTIF</option>
-                <option value="INACTIF">INACTIF</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginBottom: "0.25rem" }}>
-              Nouveau mot de passe (optionnel)
-            </div>
-            <input className="admin-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-            <button className="admin-btn" disabled={saving} type="submit">
-              {saving ? "Sauvegarde…" : "Enregistrer"}
-            </button>
-
-            <button className="admin-btn admin-btn--ghost" type="button" onClick={() => navigate(-1)}>
-              Retour
-            </button>
-
-            <button
-              className="admin-btn admin-btn--sm"
-              type="button"
-              onClick={onDelete}
-              disabled={deleting}
-              style={{ marginLeft: "auto" }}
-            >
-              {deleting ? "Suppression…" : "Supprimer"}
-            </button>
-          </div>
-        </form>
-      </div>
+      </form>
     </div>
   );
 }

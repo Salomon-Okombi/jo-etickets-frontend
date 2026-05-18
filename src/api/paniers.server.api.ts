@@ -1,5 +1,4 @@
-//paniers.server.api
-import  api  from "@/api/axiosClient";
+import api from "@/api/axiosClient";
 
 export type ServerCartLine = {
   id: number;
@@ -16,15 +15,12 @@ export type ServerCart = {
   lignes: ServerCartLine[];
 };
 
-function unwrapList(data: any): any[] {
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.results)) return data.results;
-  return [];
-}
-
 export async function getActiveServerCart(): Promise<ServerCart | null> {
-  const { data } = await api.get("/paniers/");
-  const carts = unwrapList(data);
-  const actif = carts.find((c) => String(c.statut).toUpperCase() === "ACTIF");
-  return actif ?? null;
+  try {
+    const { data } = await api.get<ServerCart>("/paniers/actif/");
+    return data ?? null;
+  } catch {
+    return null;
+  }
 }
+``

@@ -1,37 +1,39 @@
-// src/pages/Admin/Offers/OfferAdminList.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import  api  from "@/api/axiosClient";
+import api from "@/api/axiosClient";
 import useToast from "@/hooks/useToast";
+import { listOfferCategoriesAdmin, type OfferCategory } from "@/api/offerCategories.api";
 import "@/styles/admin.css";
 
-type OfferType = "SOLO" | "DUO" | "FAMILIALE" | string;
+type OfferStatus = "ACTIVE" | "INACTIVE" | "EPUISEE" | "EXPIREE";
 
-type Offer = {
+type OfferRow = {
   id: number;
 
-  // Champs possibles (selon backend)
-  nom?: string;
-  titre?: string;
+  evenement: number;
+  evenement_nom?: string | null;
 
-  type?: OfferType;
-  categorie?: OfferType;
+  categorie: number;
+  categorie_code?: string | null;
+  categorie_nom?: string | null;
 
-  description?: string;
+  nom_offre: string;
+  description?: string | null;
 
-  prix?: number | string;
-  price?: number | string;
+  prix_calcule?: string; // "12.00"
+  nb_personnes?: number; // 1/2/4
 
-  capacite?: number;      // ex: 1,2,4 personnes
-  nb_places?: number;     // fallback
-  places?: number;        // fallback
+  quota_billets_total: number;
+  quota_billets_restant: number;
 
-  stock?: number;
-  quota?: number;         // fallback
+  packs_total?: number;
+  packs_disponibles?: number;
 
-  actif?: boolean;
-  is_active?: boolean;
-  disponible?: boolean;
+  date_debut_vente: string;
+  date_fin_vente: string;
+
+  statut: OfferStatus;
+  est_disponible?: boolean;
 };
 
 type Paginated<T> = {
@@ -41,67 +43,39 @@ type Paginated<T> = {
   results: T[];
 };
 
-function pickName(o: Offer) {
-  return o.nom ?? o.titre ?? `Offre #${o.id}`;
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError" || err?.name === "AbortError";
 }
 
-function pickType(o: Offer) {
-  return (o.type ?? o.categorie ?? "—").toString();
-}
-
-function pickCapacity(o: Offer) {
-  const c = o.capacite ?? o.nb_places ?? o.places;
-  if (c === undefined || c === null) return "—";
-  return c.toLocaleString("fr-FR");
-}
-
-function pickStock(o: Offer) {
-  const s = o.stock ?? o.quota;
-  if (s === undefined || s === null) return "—";
-  return s.toLocaleString("fr-FR");
-}
-
-function pickPrice(o: Offer) {
-  const v = o.prix ?? o.price;
+function fmtMoney(v?: string | number | null) {
   if (v === undefined || v === null) return "—";
-  const num = typeof v === "string" ? Number(v) : v;
-  if (Number.isFinite(num)) return num.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-  return String(v);
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 }
 
-function pickActive(o: Offer): boolean | undefined {
-  // support de différents backends
-  if (typeof o.actif === "boolean") return o.actif;
-  if (typeof o.is_active === "boolean") return o.is_active;
-  if (typeof o.disponible === "boolean") return o.disponible;
-  return undefined;
+function fmtDateTime(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("fr-FR");
 }
 
-function activeBadgeClass(active?: boolean) {
-  if (active === true) return "admin-badge admin-badge--ok";
-  if (active === false) return "admin-badge admin-badge--danger";
-  return "admin-badge admin-badge--muted";
-}
-
-function activeLabel(active?: boolean) {
-  if (active === true) return "ACTIVE";
-  if (active === false) return "INACTIVE";
-  return "—";
-}
-
-function typeBadgeClass(type: string) {
-  const t = type.toUpperCase();
-  if (t.includes("SOLO")) return "admin-badge admin-badge--ok";
-  if (t.includes("DUO")) return "admin-badge admin-badge--warn";
-  if (t.includes("FAM")) return "admin-badge admin-badge--danger";
-  return "admin-badge admin-badge--muted";
+function badgeClassForStatut(statut: OfferStatus) {
+  if (statut === "ACTIVE") return "admin-badge admin-badge--ok";
+  if (statut === "INACTIVE") return "admin-badge admin-badge--muted";
+  if (statut === "EPUISEE") return "admin-badge admin-badge--warn";
+  return "admin-badge admin-badge--danger"; // EXPIREE
 }
 
 export default function OffersAdminList() {
   const { showToast } = useToast();
 
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offers, setOffers] = useState<OfferRow[]>([]);
   const [count, setCount] = useState(0);
+
+  const [categories, setCategories] = useState<OfferCategory[]>([]);
+  const [loadingCats, setLoadingCats] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,12 +83,11 @@ export default function OffersAdminList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Recherche (debounce)
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
-  // Filtre type (optionnel)
-  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [categorieId, setCategorieId] = useState<number | "">("");
+  const [statut, setStatut] = useState<OfferStatus | "">("");
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -123,6 +96,27 @@ export default function OffersAdminList() {
     }, 350);
     return () => window.clearTimeout(t);
   }, [searchInput]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadCats() {
+      setLoadingCats(true);
+      try {
+        const cats = await listOfferCategoriesAdmin(); // renvoie OfferCategory[]
+        if (controller.signal.aborted) return;
+        setCategories(cats);
+      } catch (err: any) {
+        if (isCanceledError(err) || controller.signal.aborted) return;
+        setCategories([]);
+      } finally {
+        if (!controller.signal.aborted) setLoadingCats(false);
+      }
+    }
+
+    loadCats();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -136,32 +130,32 @@ export default function OffersAdminList() {
           page,
           page_size: pageSize,
         };
-        if (search) params.search = search;
-        if (typeFilter) {
-          // backend possible: type/categorie
-          params.type = typeFilter;
-        }
 
-        // ✅ Endpoint attendu (à adapter si besoin)
-        const { data } = await api.get<Paginated<Offer>>("/offres/", {
+        if (search) params.search = search;
+        if (categorieId !== "") params.categorie = Number(categorieId);
+        if (statut !== "") params.statut = statut;
+
+        const { data } = await api.get<Paginated<OfferRow>>("/offres/", {
           params,
           signal: controller.signal,
         });
 
+        if (controller.signal.aborted) return;
+
         setOffers(data.results);
         setCount(data.count);
       } catch (err: any) {
-        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
+        if (isCanceledError(err) || controller.signal.aborted) return;
         console.error("Admin Offers: fetch error =", err);
         setError("Chargement des offres impossible.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
     fetchOffers();
     return () => controller.abort();
-  }, [page, pageSize, search, typeFilter]);
+  }, [page, pageSize, search, categorieId, statut]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(count / pageSize)), [count, pageSize]);
 
@@ -174,11 +168,9 @@ export default function OffersAdminList() {
     if (!ok) return;
 
     try {
-      // ✅ Endpoint attendu (à adapter si besoin)
       await api.delete(`/offres/${id}/`);
-      showToast("Offre supprimée ✅", "success");
+      showToast("Offre supprimée", "success");
 
-      // refresh local + ajustement pages
       const nextCount = Math.max(0, count - 1);
       const nextTotalPages = Math.max(1, Math.ceil(nextCount / pageSize));
       if (page > nextTotalPages) setPage(nextTotalPages);
@@ -188,17 +180,16 @@ export default function OffersAdminList() {
       }
     } catch (err) {
       console.error("Admin Offers: delete error =", err);
-      showToast("Suppression impossible (vérifie les droits / endpoint).", "error");
+      showToast("Suppression impossible (vérifie les droits).", "error");
     }
   }
 
   return (
     <div className="admin-page">
-      {/* Header page */}
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Offres</div>
         <div className="admin-subtitle">
-          Gestion des packs (SOLO / DUO / FAMILIALE) : tarifs, quotas, activation.{" "}
+          Gestion des packs (catégories, quotas billets, fenêtre de vente, statut).{" "}
           <span className="admin-text-muted" style={{ fontSize: "0.85rem" }}>
             {count.toLocaleString("fr-FR")} offre(s)
           </span>
@@ -211,13 +202,12 @@ export default function OffersAdminList() {
         </div>
       ) : null}
 
-      {/* Table */}
       <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
         <div className="admin-table-head">
           <div>
             <div className="admin-table-title">Liste des offres</div>
             <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
-              Recherche + filtre + pagination
+              Recherche + filtres + pagination
             </div>
           </div>
 
@@ -226,21 +216,39 @@ export default function OffersAdminList() {
               className="admin-input"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Recherche (nom, type, description...)"
+              placeholder="Recherche (nom, catégorie, événement...)"
             />
 
             <select
               className="admin-select"
-              value={typeFilter}
+              value={categorieId}
               onChange={(e) => {
                 setPage(1);
-                setTypeFilter(e.target.value);
+                setCategorieId(e.target.value ? Number(e.target.value) : "");
+              }}
+              disabled={loadingCats}
+            >
+              <option value="">Toutes catégories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code} — {c.nom}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="admin-select"
+              value={statut}
+              onChange={(e) => {
+                setPage(1);
+                setStatut((e.target.value as OfferStatus) || "");
               }}
             >
-              <option value="">Tous types</option>
-              <option value="SOLO">SOLO</option>
-              <option value="DUO">DUO</option>
-              <option value="FAMILIALE">FAMILIALE</option>
+              <option value="">Tous statuts</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+              <option value="EPUISEE">EPUISEE</option>
+              <option value="EXPIREE">EXPIREE</option>
             </select>
 
             <select
@@ -273,25 +281,36 @@ export default function OffersAdminList() {
                 <tr>
                   <th>ID</th>
                   <th>Nom</th>
-                  <th className="admin-td-center">Type</th>
+                  <th>Événement</th>
+                  <th>Catégorie</th>
                   <th className="admin-td-right">Prix</th>
-                  <th className="admin-td-center">Places</th>
-                  <th className="admin-td-center">Stock</th>
+                  <th className="admin-td-center">Billets</th>
+                  <th className="admin-td-center">Quota billets</th>
+                  <th className="admin-td-center">Packs dispo</th>
                   <th className="admin-td-center">Statut</th>
+                  <th>Vente</th>
                   <th className="admin-td-right">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
                 {offers.map((o) => {
-                  const type = pickType(o);
-                  const active = pickActive(o);
+                  const catLabel =
+                    o.categorie_code
+                      ? `${o.categorie_code}${o.categorie_nom ? ` — ${o.categorie_nom}` : ""}`
+                      : `#${o.categorie}`;
+
+                  const packsDispo =
+                    o.packs_disponibles !== undefined
+                      ? o.packs_disponibles
+                      : Math.floor(o.quota_billets_restant / Math.max(1, o.nb_personnes ?? 1));
 
                   return (
                     <tr key={o.id}>
                       <td>{o.id}</td>
+
                       <td>
-                        <div style={{ fontWeight: 700 }}>{pickName(o)}</div>
+                        <div style={{ fontWeight: 700 }}>{o.nom_offre}</div>
                         {o.description ? (
                           <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
                             {o.description}
@@ -299,16 +318,27 @@ export default function OffersAdminList() {
                         ) : null}
                       </td>
 
+                      <td>{o.evenement_nom ?? `#${o.evenement}`}</td>
+                      <td>{catLabel}</td>
+
+                      <td className="admin-td-right">{fmtMoney(o.prix_calcule)}</td>
+
+                      <td className="admin-td-center">{o.nb_personnes ?? "—"}</td>
+
                       <td className="admin-td-center">
-                        <span className={typeBadgeClass(type)}>{type}</span>
+                        {o.quota_billets_restant.toLocaleString("fr-FR")} / {o.quota_billets_total.toLocaleString("fr-FR")}
                       </td>
 
-                      <td className="admin-td-right">{pickPrice(o)}</td>
-                      <td className="admin-td-center">{pickCapacity(o)}</td>
-                      <td className="admin-td-center">{pickStock(o)}</td>
+                      <td className="admin-td-center">{packsDispo.toLocaleString("fr-FR")}</td>
 
                       <td className="admin-td-center">
-                        <span className={activeBadgeClass(active)}>{activeLabel(active)}</span>
+                        <span className={badgeClassForStatut(o.statut)}>{o.statut}</span>
+                      </td>
+
+                      <td>
+                        <div className="admin-text-muted" style={{ fontSize: "0.85rem" }}>
+                          {fmtDateTime(o.date_debut_vente)} → {fmtDateTime(o.date_fin_vente)}
+                        </div>
                       </td>
 
                       <td className="admin-td-right">

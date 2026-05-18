@@ -1,0 +1,851 @@
+/* ======================
+   PAGE PANIER
+====================== */
+
+.cart-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.cart-page__title {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 0.25rem;
+}
+
+.cart-page__count {
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 1.5rem;
+}
+
+/* ======================
+   PANIER VIDE
+====================== */
+
+.cart-empty {
+  padding: 2rem;
+  border: 1px dashed rgba(15, 23, 42, 0.25);
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.cart-empty a {
+  font-weight: 800;
+  text-decoration: none;
+}
+
+/* ======================
+   LISTE DES ARTICLES
+====================== */
+
+.cart-items {
+  display: grid;
+  gap: 1rem;
+}
+
+.cart-item {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cart-item__info {
+  flex: 1;
+}
+
+.cart-item__title {
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+.cart-item__meta {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: rgba(15, 23, 42, 0.75);
+}
+
+/* ======================
+   CONTRÔLES QTE
+====================== */
+
+.cart-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cart-btn {
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cart-btn--danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #7f1d1d;
+}
+
+.cart-qty {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 900;
+}
+
+/* ======================
+   RÉSUMÉ
+====================== */
+
+.cart-summary {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid rgba(15, 23, 42, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cart-total {
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.cart-submit {
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 900;
+  cursor: pointer;
+  background: linear-gradient(120deg, #ff3b30, #ff9500);
+  color: #0f172a;
+}
+
+/* ======================
+   RESPONSIVE
+====================== */
+
+@media (max-width: 640px) {
+  .cart-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cart-item__actions {
+    align-self: flex-end;
+  }
+
+  .cart-summary {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .cart-submit {
+    width: 100%;
+  }
+}
+
+.checkout-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.checkout-title {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 0.3rem;
+}
+
+.checkout-subtitle {
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 1rem;
+}
+
+.checkout-total {
+  font-size: 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.checkout-error {
+  padding: 0.75rem 1rem;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  color: #7f1d1d;
+}
+
+.checkout-box {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  padding: 1.2rem;
+  margin-bottom: 1.2rem;
+}
+
+.checkout-section-title {
+  font-weight: 900;
+  margin-bottom: 0.8rem;
+}
+
+.checkout-line {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.checkout-line--total {
+  margin-top: 0.7rem;
+  font-weight: 900;
+}
+
+.checkout-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1.2rem;
+}
+
+.checkout-btn {
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 900;
+  cursor: pointer;
+  background: #0f172a;
+  color: #fff;
+}
+
+.checkout-btn--primary {
+  background: linear-gradient(120deg, #ff3b30, #ff9500);
+  color: #0f172a;
+}
+
+.checkout-link {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.checkout-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.checkout-form input {
+  padding: 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+}
+
+.checkout-checkbox {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+  .checkout-form {
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+
+
+.cart-client {
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.cart-client__title {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 0.2rem;
+}
+
+.cart-client__subtitle {
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 1.2rem;
+}
+
+.cart-client__state {
+  padding: 2rem;
+}
+
+.cart-client__error {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+  color: #7f1d1d;
+  margin-bottom: 1rem;
+}
+
+.cart-client__empty {
+  padding: 2rem;
+  border: 1px dashed rgba(15, 23, 42, 0.25);
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.cart-client__items {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.cart-client__item {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  padding: 1rem;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cart-client__item-title {
+  font-weight: 900;
+}
+
+.cart-client__item-meta {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.cart-client__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cart-client__actions button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  font-weight: 900;
+  cursor: pointer;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.cart-client__actions button.danger {
+  background: rgba(220, 38, 38, 0.12);
+  color: #7f1d1d;
+}
+
+.cart-client__qty {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 900;
+}
+
+.cart-client__summary {
+  margin-top: 1.5rem;
+  border-top: 2px solid rgba(15, 23, 42, 0.1);
+  padding-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.cart-client__total {
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.cart-client__checkout {
+  padding: 0.7rem 1.6rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 900;
+  cursor: pointer;
+  background: linear-gradient(120deg, #ff3b30, #ff9500);
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  .cart-client__item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cart-client__actions {
+    align-self: flex-end;
+  }
+
+  .cart-client__checkout {
+    width: 100%;
+  }
+}
+
+.ticket-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.ticket-back {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.ticket-title {
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.ticket-subtitle {
+  opacity: 0.75;
+  margin-bottom: 1.2rem;
+}
+
+.ticket-error {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+  margin-bottom: 1rem;
+}
+
+.ticket-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.2rem;
+}
+
+.ticket-infos {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,0.12);
+  padding: 1.2rem;
+}
+
+.ticket-info {
+  margin-bottom: 0.8rem;
+}
+
+.ticket-info span {
+  display: block;
+  opacity: 0.7;
+}
+
+.ticket-download {
+  margin-top: 1rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 900;
+  cursor: pointer;
+  background: linear-gradient(120deg, #ff3b30, #ff9500);
+  color: #0f172a;
+}
+
+.ticket-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15,23,42,0.12);
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.ticket-qr img {
+  width: 100%;
+  max-width: 260px;
+}
+
+@media (max-width: 700px) {
+  .ticket-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.tickets-page { max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.tickets-title {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 1.2rem;
+}
+
+.tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.ticket-card {
+  background: #fff;
+  border: 1px solid rgba(15,23,42,0.15);
+  border-radius: 16px;
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ticket-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15,23,42,0.08);
+}
+
+.ticket-card__name {
+  margin-top: 0.4rem;
+  opacity: 0.8;
+}
+
+.ticket-card__status {
+  margin-top: 0.6rem;
+  font-weight: 800;
+}
+
+.status-valide {
+  color: #15803d;
+}
+
+.status-utilise {
+  color: #ca8a04;
+}
+
+
+/* =============================
+   PAGE============= */   PAGE LISTE DES BILLETS
+
+.tickets-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.tickets-title {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 1.2rem;
+}
+
+/* =============================
+   ETATS
+============================= */
+
+.tickets-page__state {
+  padding: 2rem;
+  opacity: 0.8;
+}
+
+/* =============================
+   GRILLE DES BILLETS
+============================= */
+
+.tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+/* =============================
+   CARTE BILLET
+============================= */
+
+.ticket-card {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ticket-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+}
+
+.ticket-card strong {
+  display: block;
+  font-weight: 900;
+  margin-bottom: 0.25rem;
+}
+
+.ticket-card__name {
+  opacity: 0.8;
+  margin-bottom: 0.6rem;
+}
+
+/* =============================
+   STATUT DU BILLET
+============================= */
+
+.ticket-card__status {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Statuts */
+.status-valide {
+  background: rgba(22, 163, 74, 0.12);
+  color: #166534;
+}
+
+.status-utilise {
+  background: rgba(202, 138, 4, 0.15);
+  color: #92400e;
+}
+
+.status-annule {
+  background: rgba(220, 38, 38, 0.12);
+  color: #7f1d1d;
+}
+
+/* =============================
+   RESPONSIVE
+============================= */
+
+@media (max-width: 480px) {
+  .tickets-title {
+    font-size: 1.6rem;
+  }
+
+  .ticket-card {
+    padding: 0.9rem;
+  }
+}
+
+/* =========================
+   LISTE DES COMMANDES
+========================= */
+
+.orders-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.orders-title {
+  font-size: 2rem;
+  font-weight: 900;
+  margin-bottom: 1.2rem;
+}
+
+.orders-empty {
+  padding: 2rem;
+  opacity: 0.8;
+}
+
+.orders-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.order-card {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.order-card__main {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-card__number {
+  font-weight: 900;
+}
+
+.order-card__meta {
+  opacity: 0.8;
+  margin-top: 0.3rem;
+}
+
+.order-card__date {
+  font-size: 0.85rem;
+  opacity: 0.65;
+  margin-top: 0.3rem;
+}
+
+.order-card__link {
+  font-weight: 800;
+  text-decoration: none;
+}
+
+/* Pagination */
+
+.orders-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+}
+
+.orders-pagination button {
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.orders-pagination select {
+  padding: 0.3rem 0.5rem;
+}
+
+
+
+/* =========================
+   DÉTAIL COMMANDE
+========================= */
+
+.order-detail {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.order-detail__back {
+  background: none;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.order-detail__title {
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.order-detail__meta {
+  opacity: 0.8;
+  margin-top: 0.4rem;
+}
+
+.order-detail__submeta {
+  opacity: 0.65;
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.order-detail__error {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.order-lines {
+  margin-top: 1.2rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.order-line {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 0.8rem 1rem;
+  background: #fff;
+}
+
+.order-line__title {
+  font-weight: 800;
+}
+
+.order-line__meta {
+  opacity: 0.8;
+  margin-top: 0.3rem;
+}
+
+.order-detail__actions {
+  margin-top: 1.4rem;
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.order-detail__actions button {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 900;
+  cursor: pointer;
+  background: linear-gradient(120deg, #ff3b30, #ff9500);
+  color: #0f172a;
+}
+
+.order-detail__actions a {
+  font-weight: 800;
+  text-decoration: none;
+}
+
+
+/* =========================
+   OFFRES CLIENT
+========================= */
+
+.offers-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.offer-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.offer-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.offer-card .card-title {
+  font-weight: 900;
+}
+
+.offer-card .badge {
+  font-weight: 800;
+}
+
+.offer-card .btn {
+  font-weight: 900;
+}
+

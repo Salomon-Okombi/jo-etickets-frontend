@@ -1,13 +1,68 @@
-//src/pages/Public/HomePage.tsx
+// src/pages/Public/HomePage.tsx
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import heroBg from "../../assets/images/ticket.jpg";
+import api from "@/api/axiosClient";
+import heroBg from "@/assets/images/ticket.jpg";
 
-const HomePage: React.FC = () => {
+type HomeEvent = {
+  id: number;
+  nom_evenement: string;
+  description_courte: string;
+  image_url?: string | null;
+  lieu: string;
+  date_debut: string;
+  discipline?: string | null;
+};
+
+const FALLBACK_IMAGE = "/images/event-default.jpg";
+
+function isCanceledError(err: any) {
+  return (
+    err?.code === "ERR_CANCELED" ||
+    err?.name === "CanceledError" ||
+    err?.name === "AbortError"
+  );
+}
+
+export default function HomePage() {
+  const [events, setEvents] = useState<HomeEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadLatestEvents() {
+      try {
+        const { data } = await api.get<HomeEvent[]>("/evenements/latest/", {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        setEvents(data);
+      } catch (err: any) {
+        if (isCanceledError(err) || controller.signal.aborted) return;
+        setEvents([]);
+      } finally {
+        if (!controller.signal.aborted) setLoadingEvents(false);
+      }
+    }
+
+    loadLatestEvents();
+    return () => controller.abort();
+  }, []);
+
+  function formatDateTime(date: string) {
+    return new Date(date).toLocaleDateString("fr-FR", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+    });
+  }
+
   return (
     <div className="home">
-      {/* HERO */}
+      {/* ================= HERO ================= */}
       <section
-        className="home-hero" 
+        className="home-hero"
         style={{
           backgroundImage: `
             linear-gradient(120deg, rgba(1, 14, 61, 0.9), rgba(134, 150, 200, 0.9)),
@@ -16,15 +71,18 @@ const HomePage: React.FC = () => {
         }}
       >
         <div className="home-hero__content">
-          <p className="home-hero__eyebrow">Billetterie officielle – e-tickets sécurisés</p>
+          <p className="home-hero__eyebrow">
+            Billetterie officielle – e‑tickets sécurisés
+          </p>
+
           <h1 className="home-hero__title">
             Vivez les Jeux Olympiques
             <span> Paris 2024</span>
           </h1>
+
           <p className="home-hero__subtitle">
-            Réservez vos e-billets pour les plus grandes épreuves : athlétisme, natation,
-            gymnastique, sports collectifs… Choisissez votre offre Solo, Duo ou Famille
-            et recevez vos tickets 100% numériques, sécurisés par QR code.
+            Réservez vos e‑billets pour les plus grandes épreuves :
+            athlétisme, natation, gymnastique, sports collectifs…
           </p>
 
           <div className="home-hero__actions">
@@ -37,20 +95,19 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="home-hero__meta">
-            <span>e-billets nominatifs</span>
+            <span>e‑billets nominatifs</span>
             <span>Contrôle sécurisé par QR Code</span>
-            <span>Pas de file d’attente au guichet</span>
+            <span>Pas d’attente au guichet</span>
           </div>
         </div>
       </section>
 
-      {/* COMMENT ÇA MARCHE */}
+      {/* ================= COMMENT ÇA MARCHE ================= */}
       <section className="home-steps">
         <div className="home-section__inner">
-          <h2 className="home-section__title">Comment ça marche&nbsp;?</h2>
+          <h2 className="home-section__title">Comment ça marche ?</h2>
           <p className="home-section__subtitle">
-            En quelques étapes, réservez vos places pour les épreuves des Jeux Olympiques
-            et recevez vos e-billets sécurisés.
+            En quelques étapes, réservez vos places et recevez vos e‑billets.
           </p>
 
           <div className="home-steps__grid">
@@ -58,8 +115,7 @@ const HomePage: React.FC = () => {
               <div className="home-step-card__number">1</div>
               <h3 className="home-step-card__title">Choisissez vos épreuves</h3>
               <p className="home-step-card__text">
-                Parcourez le calendrier des Jeux Olympiques, découvrez les disciplines et
-                sélectionnez les épreuves qui vous intéressent.
+                Parcourez le calendrier et sélectionnez les épreuves disponibles.
               </p>
               <Link to="/evenements" className="home-step-card__link">
                 Voir les épreuves
@@ -70,8 +126,7 @@ const HomePage: React.FC = () => {
               <div className="home-step-card__number">2</div>
               <h3 className="home-step-card__title">Sélectionnez une offre</h3>
               <p className="home-step-card__text">
-                Choisissez une offre Solo, Duo ou Famille selon le nombre de personnes
-                (1, 2 ou 4 billets) et ajoutez-la à votre panier.
+                Solo, Duo ou Famille selon le nombre de personnes.
               </p>
               <Link to="/offres" className="home-step-card__link">
                 Voir les offres
@@ -80,10 +135,9 @@ const HomePage: React.FC = () => {
 
             <div className="home-step-card">
               <div className="home-step-card__number">3</div>
-              <h3 className="home-step-card__title">Recevez vos e-billets</h3>
+              <h3 className="home-step-card__title">Recevez vos e‑billets</h3>
               <p className="home-step-card__text">
-                Créez votre compte, validez votre commande et obtenez vos e-billets
-                sous forme de QR Code, prêts à être scannés le jour J.
+                Paiement validé → billets QR Code disponibles immédiatement.
               </p>
               <Link to="/register" className="home-step-card__link">
                 Créer mon compte
@@ -93,144 +147,60 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* QUELQUES ÉPREUVES */}
+      {/* ================= TOP 3 ÉVÉNEMENTS ================= */}
       <section className="home-events">
         <div className="home-section__inner">
-          <h2 className="home-section__title">Quelques épreuves phares</h2>
+          <h2 className="home-section__title">Dernières épreuves ajoutées</h2>
+
           <p className="home-section__subtitle">
-            Athlétisme au Stade de France, finales de natation, matchs de basket décisifs…
-            Découvrez un aperçu des épreuves disponibles à la réservation.
+            Découvrez les 3 prochains événements disponibles
           </p>
 
-          <div className="home-events__grid">
-            <article className="home-event-card">
-              <h3 className="home-event-card__title">Finale 100m Athlétisme</h3>
-              <p className="home-event-card__meta">
-                Stade de France · Sprint · Ambiance électrique
-              </p>
-              <p className="home-event-card__text">
-                Vivez la course la plus rapide des Jeux, avec les meilleurs sprinteurs
-                mondiaux en lice pour l’or olympique.
-              </p>
-            </article>
+          {loadingEvents ? (
+            <div>Chargement…</div>
+          ) : (
+            <div className="home-events__grid">
+              {events.map((event) => (
+                <article key={event.id} className="home-event-card">
+                  <img
+                    src={event.image_url || FALLBACK_IMAGE}
+                    alt={event.nom_evenement}
+                    className="home-event-card__image"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
+                    }}
+                  />
 
-            <article className="home-event-card">
-              <h3 className="home-event-card__title">Finales Natation</h3>
-              <p className="home-event-card__meta">
-                Centre aquatique · 50m & 100m nage libre
-              </p>
-              <p className="home-event-card__text">
-                Des arrivées au centième de seconde et une ambiance survoltée dans
-                les tribunes, au plus près des bassins.
-              </p>
-            </article>
+                  <div className="home-event-card__content">
+                    <div className="home-event-card__date">
+                      {formatDateTime(event.date_debut)}
+                    </div>
 
-            <article className="home-event-card">
-              <h3 className="home-event-card__title">Basket – Match décisif</h3>
-              <p className="home-event-card__meta">
-                Arena · Tour final masculin
-              </p>
-              <p className="home-event-card__text">
-                Les plus grandes stars du basket mondial réunies pour un match à
-                couper le souffle, direction la médaille.
-              </p>
-            </article>
-          </div>
+                    <h3 className="home-event-card__title">{event.nom_evenement}</h3>
+
+                    <p className="home-event-card__meta">
+                      {event.lieu}
+                      {event.discipline ? ` · ${event.discipline}` : ""}
+                    </p>
+
+                    <p className="home-event-card__text">{event.description_courte}</p>
+
+                    <Link to={`/evenements/${event.id}`} className="home-event-card__link">
+                      Voir l’épreuve
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
 
           <div className="home-section__cta-row">
             <Link to="/evenements" className="home-section__link">
-              Explorer toutes les épreuves
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* OFFRES SOLO / DUO / FAMILLE */}
-      <section className="home-offers">
-        <div className="home-section__inner home-offers__inner">
-          <div className="home-offers__intro">
-            <h2 className="home-section__title">Des offres pour tous les publics</h2>
-            <p className="home-section__subtitle">
-              Que vous veniez seul, en couple ou en famille, choisissez l’offre qui
-              correspond le mieux à votre expérience des Jeux Olympiques.
-            </p>
-            <Link to="/offres" className="home-hero__cta home-hero__cta--primary">
-              Voir toutes les offres
-            </Link>
-          </div>
-
-          <div className="home-offers__grid">
-            <article className="home-offer-card">
-              <h3 className="home-offer-card__title">Offre Solo</h3>
-              <p className="home-offer-card__badge">1 personne</p>
-              <p className="home-offer-card__text">
-                Idéale pour vivre une épreuve en solo, au plus près de l’action, avec un
-                e-billet nominatif sécurisé.
-              </p>
-            </article>
-
-            <article className="home-offer-card">
-              <h3 className="home-offer-card__title">Offre Duo</h3>
-              <p className="home-offer-card__badge">2 personnes</p>
-              <p className="home-offer-card__text">
-                Partagez un moment unique à deux pour encourager vos athlètes
-                préférés depuis les tribunes.
-              </p>
-            </article>
-
-            <article className="home-offer-card">
-              <h3 className="home-offer-card__title">Offre Famille</h3>
-              <p className="home-offer-card__badge">4 personnes</p>
-              <p className="home-offer-card__text">
-                Vivez la magie des Jeux en famille avec une offre adaptée aux foyers,
-                pour créer des souvenirs inoubliables.
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      {/* SÉCURITÉ DES E-BILLETS */}
-      <section className="home-security">
-        <div className="home-section__inner home-security__inner">
-          <div className="home-security__content">
-            <h2 className="home-section__title">Des e-billets sécurisés de bout en bout</h2>
-            <p className="home-section__subtitle">
-              Chaque e-billet est protégé par une double clé et un QR Code unique. Le jour
-              des épreuves, un simple scan permet de vérifier l’authenticité du ticket et
-              l’identité de son titulaire.
-            </p>
-
-            <ul className="home-security__list">
-              <li>
-                <strong>Clé de compte</strong> générée lors de la création de votre compte
-                (non visible pour vous, gérée par l’organisation).
-              </li>
-              <li>
-                <strong>Clé de billet</strong> générée à l’achat et concaténée avec la clé
-                de compte pour sécuriser le e-billet.
-              </li>
-              <li>
-                <strong>QR Code unique</strong> scanné à l’entrée pour valider votre accès
-                à l’épreuve choisie.
-              </li>
-            </ul>
-          </div>
-
-          <div className="home-security__highlight">
-            <p className="home-security__tag">Anti-fraude</p>
-            <p className="home-security__text">
-              Fini les falsifications de tickets physiques : tout se fait depuis votre espace
-              en ligne, avec des billets numériques infalsifiables.
-            </p>
-            <Link to="/register" className="home-hero__cta home-hero__cta--secondary">
-              Créer un compte sécurisé
+              Voir toutes les épreuves
             </Link>
           </div>
         </div>
       </section>
     </div>
   );
-};
-
-export default HomePage;
+}

@@ -1,9 +1,9 @@
+// src/pages/Events/EventDetailPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import api from "@/utils/http";
+import api from "@/api/axiosClient";
 import { useCart } from "@/features/cart/useCart";
 import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.api";
-import type { Offer } from "@/types/offers";
 
 type EventDetail = {
   id: number;
@@ -11,9 +11,22 @@ type EventDetail = {
   description_longue: string;
   image_url?: string | null;
   lieu: string;
-  date_evenement: string;
-  heure_evenement?: string | null;
+  date_debut: string;
+  date_fin: string;
   discipline?: string | null;
+  prix_base: number | string;
+};
+
+type OfferApi = {
+  id: number;
+  evenement: number;
+  categorie: number;
+  nom_offre?: string;
+  prix_calcule: string;
+  multiplicateur: number;
+  stock_disponible: number;
+  statut: string;
+  est_disponible: boolean;
 };
 
 type Paginated<T> = {
@@ -25,28 +38,9 @@ type Paginated<T> = {
 
 const FALLBACK_IMAGE = "/images/event-default.jpg";
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatTime(heure?: string | null) {
-  if (!heure) return null;
-  const [h, m] = heure.split(":");
-  const d = new Date();
-  d.setHours(Number(h), Number(m || 0));
-  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatPrice(raw: number | string) {
-  const n = typeof raw === "string" ? Number(raw) : raw;
-  const safe = Number.isFinite(n) ? n : 0;
-  return safe.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-}
+/* ===============================
+   HELPERS
+=============================== */
 
 function unwrap<T>(data: any): T[] {
   if (Array.isArray(data)) return data;
@@ -54,26 +48,50 @@ function unwrap<T>(data: any): T[] {
   return [];
 }
 
+function fmtMoney(v?: number | string) {
+  if (v === undefined || v === null) return "—";
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("fr-FR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function isEventActive(ev: EventDetail) {
+  const now = new Date();
+  return new Date(ev.date_debut) <= now && now <= new Date(ev.date_fin);
+}
+
+/* ===============================
+   COMPONENT
+=============================== */
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const eventId = Number(id);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const reserveRequested = searchParams.get("reserve") === "1";
 
   const offersRef = useRef<HTMLDivElement | null>(null);
-
   const { addItem } = useCart();
 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [cats, setCats] = useState<OfferCategory[]>([]);
-  const [offers, setOffers] = useState<Offer[]>([]);
-
+  const [offers, setOffers] = useState<OfferApi[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<number | null>(null);
-
-  const reserveRequested = searchParams.get("reserve") === "1";
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -85,17 +103,17 @@ export default function EventDetailPage() {
 
         const [evRes, catRows, offersRes] = await Promise.all([
           api.get<EventDetail>(`/evenements/${eventId}/`),
-          listOfferCategories(), // doit renvoyer un array (voir note plus bas)
-          api.get<Paginated<Offer> | Offer[]>(`/offres/`, {
-            params: { evenement: eventId, statut: "ACTIVE" },
+          listOfferCategories(),
+          api.get<Paginated<OfferApi> | OfferApi[]>("/offres/", {
+            params: { evenement: eventId },
           }),
         ]);
 
         if (!mounted) return;
 
         setEvent(evRes.data);
-        setCats(unwrap<OfferCategory>(catRows));
-        setOffers(unwrap<Offer>(offersRes.data));
+        setCats(catRows);
+        setOffers(unwrap<OfferApi>(offersRes.data));
       } catch {
         if (!mounted) return;
         setError("Impossible de charger le détail et les offres.");
@@ -116,57 +134,21 @@ export default function EventDetailPage() {
     };
   }, [eventId]);
 
-  // Scroll automatique si on vient de “Ajouter au panier” (reserve=1)
   useEffect(() => {
-    if (!reserveRequested) return;
-    if (!offersRef.current) return;
+    if (!reserveRequested || !offersRef.current || loading) return;
     offersRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [reserveRequested, loading]);
 
-  const offersByCategoryCode = useMemo(() => {
-    const map = new Map<string, Offer>();
-    for (const o of offers) {
-      const code = String(o.type_offre ?? "").toUpperCase();
-      if (!code) continue;
-      map.set(code, o);
-    }
+  const offersByCategorieId = useMemo(() => {
+    const map = new Map<number, OfferApi>();
+    for (const o of offers) map.set(Number(o.categorie), o);
     return map;
   }, [offers]);
 
-  const availableCats = useMemo(() => {
-    const sorted = [...cats].sort(
-      (a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)
-    );
-
-    return sorted.filter((c) => {
-      const offer = offersByCategoryCode.get(c.code.toUpperCase());
-      if (!offer) return false;
-      if (String(offer.statut).toUpperCase() !== "ACTIVE") return false;
-      if (Number(offer.stock_disponible ?? 0) <= 0) return false;
-      return true;
-    });
-  }, [cats, offersByCategoryCode]);
-
-  async function handleAddOffer(offer: Offer, category: OfferCategory) {
-    try {
-      setAdding(offer.id);
-      setError(null);
-
-      addItem({
-        offre: offer.id,
-        quantite: 1,
-        nom_offre: offer.nom_offre,
-        prix: offer.prix,
-        nb_personnes: category.nb_personnes,
-      });
-
-      navigate("/panier");
-    } catch {
-      setError("Impossible d’ajouter au panier.");
-    } finally {
-      setAdding(null);
-    }
-  }
+  const sortedCats = useMemo(
+    () => [...cats].sort((a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)),
+    [cats]
+  );
 
   function handleReserveClick() {
     if (offersRef.current) {
@@ -174,7 +156,21 @@ export default function EventDetailPage() {
     }
   }
 
-  if (loading) return <div className="event-detail__state">Chargement…</div>;
+  function handleAddOffer(offer: OfferApi, category: OfferCategory) {
+    addItem({
+      offre: offer.id,
+      quantite: 1,
+      nom_offre: offer.nom_offre ?? `${category.code} - ${event?.nom_evenement ?? ""}`,
+      prix: offer.prix_calcule,
+      nb_personnes: category.nb_personnes,
+    });
+
+    navigate("/panier");
+  }
+
+  if (loading) {
+    return <div className="event-detail__state">Chargement…</div>;
+  }
 
   if (!event) {
     return (
@@ -189,6 +185,8 @@ export default function EventDetailPage() {
       ? event.image_url
       : FALLBACK_IMAGE;
 
+  const actif = isEventActive(event);
+
   return (
     <div className="event-detail">
       <section className="event-detail__hero">
@@ -197,29 +195,24 @@ export default function EventDetailPage() {
             <Link to="/evenements">Épreuves</Link> / <span>{event.nom_evenement}</span>
           </nav>
 
-          <div className="event-detail__date">
-            {formatDate(event.date_evenement)}
-            {formatTime(event.heure_evenement)
-              ? ` • ${formatTime(event.heure_evenement)}`
-              : ""}
-          </div>
-
           <h1 className="event-detail__title">{event.nom_evenement}</h1>
 
-          <div className="event-detail__meta">
-            {event.discipline ? <span>{event.discipline}</span> : null}
-            <span>{event.lieu}</span>
+          <div style={{ marginTop: 8 }}>
+            {formatDateTime(event.date_debut)} → {formatDateTime(event.date_fin)}
           </div>
 
-          <p className="event-detail__description">{event.description_longue}</p>
+          <div style={{ marginTop: 8, fontWeight: 800 }}>
+            Prix de base : {fmtMoney(event.prix_base)}
+          </div>
 
           <div style={{ marginTop: 16 }}>
             <button
               type="button"
               className="event-card__cta"
+              disabled={!actif}
               onClick={handleReserveClick}
             >
-              Réserver
+              {actif ? "Réserver" : "Événement terminé"}
             </button>
           </div>
         </div>
@@ -227,10 +220,6 @@ export default function EventDetailPage() {
 
       <section className="event-detail__offers" ref={offersRef}>
         <div className="event-detail__offers-inner">
-          {error ? (
-            <div className="event-detail__state event-detail__state--error">{error}</div>
-          ) : null}
-
           <div className="event-detail__image-wrapper">
             <img
               src={imageSrc}
@@ -244,65 +233,46 @@ export default function EventDetailPage() {
           </div>
 
           <h2 className="event-detail__offers-title">Choisir une offre</h2>
-          <p className="event-detail__offers-subtitle">
-            Sélectionne le type d’offre. Le visiteur choisit l’offre (SOLO, DUO, FAMILLE, ou toute catégorie ajoutée par l’admin).
-          </p>
 
-          {availableCats.length === 0 ? (
-            <div className="event-detail__state">Aucune offre disponible pour cet événement.</div>
-          ) : (
-            <div className="event-detail__offers-grid">
-              {availableCats.map((c) => {
-                const code = c.code.toUpperCase();
-                const offer = offersByCategoryCode.get(code)!;
+          <div className="event-detail__offers-grid">
+            {sortedCats.map((c) => {
+              const offer = offersByCategorieId.get(c.id);
+              const disabled =
+                !actif ||
+                !offer ||
+                !offer.est_disponible ||
+                offer.stock_disponible <= 0;
 
-                return (
-                  <article key={c.id} className="offer-card">
-                    <header className="offer-card__header">
-                      <span
-                        className={`offer-card__badge offer-card__badge--${
-                          code === "FAMILIALE" ? "famille" : code.toLowerCase()
-                        }`}
-                      >
-                        {c.nom}
-                      </span>
-                      <h3 className="offer-card__title">{code}</h3>
-                    </header>
+              return (
+                <article key={c.id} className="offer-card">
+                  <header className="offer-card__header">
+                    <span className={`offer-card__badge offer-card__badge--${c.code.toLowerCase()}`}>
+                      {c.nom}
+                    </span>
+                    <h3 className="offer-card__title">{c.code.toUpperCase()}</h3>
+                  </header>
 
-                    <p className="offer-card__description">
-                      {c.description ?? "Catégorie d’offre."}
-                    </p>
+                  <dl className="offer-card__details">
+                    <div><dt>Billets</dt><dd>{c.nb_personnes}</dd></div>
+                    <div><dt>Prix</dt><dd>{offer ? fmtMoney(offer.prix_calcule) : "—"}</dd></div>
+                    <div><dt>Stock</dt><dd>{offer ? offer.stock_disponible : "—"}</dd></div>
+                  </dl>
 
-                    <dl className="offer-card__details">
-                      <div className="offer-card__detail-row">
-                        <dt>Billets</dt>
-                        <dd>{c.nb_personnes}</dd>
-                      </div>
-                      <div className="offer-card__detail-row">
-                        <dt>Prix</dt>
-                        <dd>{formatPrice(offer.prix)}</dd>
-                      </div>
-                      <div className="offer-card__detail-row">
-                        <dt>Stock</dt>
-                        <dd>{String(offer.stock_disponible ?? 0)}</dd>
-                      </div>
-                    </dl>
-
-                    <div className="offer-card__actions">
-                      <button
-                        type="button"
-                        className="offer-card__cta"
-                        disabled={adding === offer.id}
-                        onClick={() => handleAddOffer(offer, c)}
-                      >
-                        {adding === offer.id ? "Ajout…" : "Ajouter au panier"}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+                  <div className="offer-card__actions">
+                    <button
+                      className="offer-card__cta"
+                      disabled={disabled || adding === offer?.id}
+                      onClick={() => offer && handleAddOffer(offer, c)}
+                    >
+                      {!actif ? "Indisponible"
+                        : disabled ? "Indisponible"
+                        : "Ajouter au panier"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
       </section>
     </div>

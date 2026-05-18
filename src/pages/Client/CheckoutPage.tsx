@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getActiveServerCart } from "@/api/paniers.server.api";
 import { createOrder } from "@/api/orders.api";
 import { initPaiement, confirmPaiement } from "@/api/paiements.api";
+import "@/styles/checkout.css";
 
 function fmtMoney(v?: number | string) {
   if (v === undefined || v === null) return "—";
@@ -21,9 +22,9 @@ export default function CheckoutPage() {
   const [paying, setPaying] = useState(false);
 
   const [order, setOrder] = useState<any>(null);
-
   const [error, setError] = useState<string | null>(null);
 
+  // Données paiement mock
   const [cardName, setCardName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExp, setCardExp] = useState("");
@@ -38,7 +39,7 @@ export default function CheckoutPage() {
         const cart = await getActiveServerCart();
         setServerCart(cart);
       } catch {
-        setError("Impossible de charger le panier serveur.");
+        setError("Impossible de charger votre panier pour le paiement.");
       } finally {
         setLoading(false);
       }
@@ -64,8 +65,7 @@ export default function CheckoutPage() {
       const created = await createOrder({ items });
       setOrder(created);
     } catch (e: any) {
-      const msg = e?.response?.data?.detail;
-      setError(msg ? String(msg) : "Création de commande impossible.");
+      setError(e?.response?.data?.detail ?? "Création de la réservation impossible.");
     } finally {
       setCreating(false);
     }
@@ -73,9 +73,8 @@ export default function CheckoutPage() {
 
   async function onPay() {
     if (!order) return;
-
-    if (!cardName.trim() || !cardNumber.trim() || !cardExp.trim() || !cardCvc.trim()) {
-      setError("Merci de renseigner les informations bancaires (mock).");
+    if (!cardName || !cardNumber || !cardExp || !cardCvc) {
+      setError("Merci de renseigner toutes les informations de paiement.");
       return;
     }
 
@@ -102,160 +101,94 @@ export default function CheckoutPage() {
 
       navigate(`/mon-espace/commandes/${order.id}`);
     } catch (e: any) {
-      const msg = e?.response?.data?.detail;
-      setError(msg ? String(msg) : "Paiement impossible.");
+      setError(e?.response?.data?.detail ?? "Le paiement a échoué.");
     } finally {
       setPaying(false);
     }
   }
 
-  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
+  if (loading) {
+    return <div className="checkout-page__state">Chargement du paiement…</div>;
+  }
 
   if (!serverCart || (serverCart.lignes || []).length === 0) {
     return (
-      <div style={{ padding: "2rem" }}>
-        {error ? <div style={{ color: "#b42318" }}>{error}</div> : null}
-        <div>Votre panier serveur est vide.</div>
-        <Link to="/offres">Retour aux offres</Link>
+      <div className="checkout-page">
+        <p>Votre panier est vide.</p>
+        <Link to="/evenements">→ Revenir aux événements</Link>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "1.5rem", maxWidth: 1000, margin: "0 auto" }}>
-      <h1 style={{ fontSize: "1.8rem", fontWeight: 900 }}>Paiement</h1>
-      <div style={{ opacity: 0.8, marginTop: 6 }}>
-        Total panier : <strong>{fmtMoney(serverCart.montant_total)}</strong>
+    <div className="checkout-page">
+      <h1 className="checkout-title">🎫 Finaliser votre réservation</h1>
+      <p className="checkout-subtitle">
+        Paiement sécurisé · Billets officiels · Accès garanti
+      </p>
+
+      <div className="checkout-total">
+        Total à payer : <strong>{fmtMoney(serverCart.montant_total)}</strong>
       </div>
 
-      {error ? (
-        <div
-          style={{
-            marginTop: "1rem",
-            padding: "0.75rem 1rem",
-            border: "1px solid rgba(220,38,38,0.35)",
-            background: "rgba(220,38,38,0.08)",
-            borderRadius: 12,
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
+      {error && <div className="checkout-error">{error}</div>}
 
-      <div
-        style={{
-          marginTop: "1rem",
-          border: "1px solid rgba(15,23,42,0.12)",
-          borderRadius: 14,
-          padding: "1rem",
-        }}
-      >
-        <div style={{ fontWeight: 900, marginBottom: 10 }}>Récapitulatif</div>
+      {/* RÉCAP */}
+      <div className="checkout-box">
+        <h2 className="checkout-section-title">🧾 Récapitulatif</h2>
 
-        <div style={{ display: "grid", gap: "0.6rem" }}>
-          {serverCart.lignes.map((l: any) => (
-            <div
-              key={l.id}
-              style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}
-            >
-              <div style={{ fontWeight: 700 }}>Offre #{l.offre}</div>
-              <div style={{ fontWeight: 900 }}>
-                x{l.quantite} — {fmtMoney(l.sous_total)}
-              </div>
-            </div>
-          ))}
-        </div>
+        {serverCart.lignes.map((l: any) => (
+          <div key={l.id} className="checkout-line">
+            <span>Billets — Offre #{l.offre}</span>
+            <strong>x{l.quantite} · {fmtMoney(l.sous_total)}</strong>
+          </div>
+        ))}
 
-        <div
-          style={{
-            marginTop: "0.8rem",
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ fontWeight: 900 }}>Total</div>
-          <div style={{ fontWeight: 900 }}>{fmtMoney(serverCart.montant_total)}</div>
+        <div className="checkout-line checkout-line--total">
+          <span>Total</span>
+          <strong>{fmtMoney(serverCart.montant_total)}</strong>
         </div>
       </div>
 
-      <div style={{ marginTop: "1rem", display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
+      {/* ACTIONS */}
+      <div className="checkout-actions">
         {!order ? (
-          <button onClick={onCreateOrder} disabled={!canCreateOrder || creating}>
-            {creating ? "Création…" : "Créer la commande"}
+          <button className="checkout-btn" onClick={onCreateOrder} disabled={creating}>
+            {creating ? "Création de la réservation…" : "Créer la réservation"}
           </button>
         ) : (
-          <div
-            style={{
-              padding: "0.6rem 0.9rem",
-              border: "1px solid rgba(15,23,42,0.12)",
-              borderRadius: 12,
-            }}
-          >
-            Commande: <strong>{order.numero_commande}</strong> — Statut:{" "}
-            <strong>{order.statut}</strong>
+          <div className="checkout-order-ref">
+            Réservation <strong>{order.numero_commande}</strong>
           </div>
         )}
 
-        <Link to="/mon-espace/panier" style={{ textDecoration: "none" }}>
-          Retour au panier
+        <Link to="/mon-espace/panier" className="checkout-link">
+          ← Modifier ma sélection
         </Link>
       </div>
 
-      {order ? (
-        <div
-          style={{
-            marginTop: "1.2rem",
-            border: "1px solid rgba(15,23,42,0.12)",
-            borderRadius: 14,
-            padding: "1rem",
-          }}
-        >
-          <div style={{ fontWeight: 900, marginBottom: 10 }}>Informations bancaires (mock)</div>
+      {/* PAIEMENT */}
+      {order && (
+        <div className="checkout-box">
+          <h2 className="checkout-section-title">💳 Paiement sécurisé (simulation)</h2>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.8rem" }}>
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: 4 }}>Nom sur la carte</div>
-              <input value={cardName} onChange={(e) => setCardName(e.target.value)} />
-            </div>
-
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: 4 }}>Numéro de carte</div>
-              <input
-                value={cardNumber}
-                onChange={(e) => setCardNumber(e.target.value)}
-                placeholder="4242 4242 4242 4242"
-              />
-            </div>
-
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: 4 }}>Expiration</div>
-              <input value={cardExp} onChange={(e) => setCardExp(e.target.value)} placeholder="MM/AA" />
-            </div>
-
-            <div>
-              <div style={{ opacity: 0.7, marginBottom: 4 }}>CVC</div>
-              <input value={cardCvc} onChange={(e) => setCardCvc(e.target.value)} placeholder="123" />
-            </div>
+          <div className="checkout-form">
+            <input placeholder="Nom sur la carte" value={cardName} onChange={(e) => setCardName(e.target.value)} />
+            <input placeholder="Numéro de carte" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} />
+            <input placeholder="MM/AA" value={cardExp} onChange={(e) => setCardExp(e.target.value)} />
+            <input placeholder="CVC" value={cardCvc} onChange={(e) => setCardCvc(e.target.value)} />
           </div>
 
-          <div style={{ marginTop: 10 }}>
-            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input type="checkbox" checked={success} onChange={(e) => setSuccess(e.target.checked)} />
-              Paiement réussi (mock)
-            </label>
-          </div>
+          <label className="checkout-checkbox">
+            <input type="checkbox" checked={success} onChange={(e) => setSuccess(e.target.checked)} />
+            Paiement réussi (mock)
+          </label>
 
-          <div style={{ marginTop: "1rem", display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
-            <button onClick={onPay} disabled={paying}>
-              {paying ? "Paiement…" : "Valider le paiement (mock)"}
-            </button>
-
-            <Link to="/mon-espace/billets" style={{ textDecoration: "none" }}>
-              Mes billets
-            </Link>
-          </div>
+          <button className="checkout-btn checkout-btn--primary" onClick={onPay} disabled={paying}>
+            {paying ? "Paiement en cours…" : "Confirmer le paiement"}
+          </button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

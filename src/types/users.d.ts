@@ -1,25 +1,59 @@
 // src/types/users.d.ts
 
-export type AccountType = "CLIENT" | "ADMIN" |  "ADMINISTRATEUR" | "UTILISATEUR" | string;
-export type AccountStatus = "ACTIF" | "INACTIF" | string;
+/* =========================================================
+   TYPES MÉTIERS
+========================================================= */
 
-/**
- * DTO utilisateur (aligné sur UtilisateurSerializer côté backend)
- * fields = ["id", "username", "email", "role", "statut", "date_creation"]
- */
+export type AccountType =
+  | "ADMIN"
+  | "ORGANISATEUR"
+  | "UTILISATEUR";
+
+/* =========================================================
+   UTILISATEUR – LISTES / ADMIN
+   (CRUD admin, tableaux, recherches)
+========================================================= */
+
 export interface User {
   id: number;
   username: string;
   email: string;
+
   role?: AccountType;
-  statut?: AccountStatus;
+  est_bloque?: boolean;
+  est_verifie?: boolean;
+
   date_creation?: string;
-  
 }
 
-/**
- * Pagination DRF standard
- */
+/* =========================================================
+   PROFIL UTILISATEUR CONNECTÉ
+   /api/utilisateurs/me/
+    utilisé dans useAuth / MainHeader / ProfilePage
+========================================================= */
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+
+  first_name: string | null;
+  last_name: string | null;
+  telephone?: string | null;
+
+  role: AccountType;
+  est_verifie: boolean;
+  est_bloque: boolean;
+
+  photo_profil_url?: string | null;
+
+  date_creation?: string;
+}
+
+/* =========================================================
+   PAGINATION DRF
+========================================================= */
+
 export interface Paginated<T> {
   count: number;
   next: string | null;
@@ -27,33 +61,35 @@ export interface Paginated<T> {
   results: T[];
 }
 
-/**
- * Params de liste pour DRF
- */
+/* =========================================================
+   PARAMÈTRES LISTE ADMIN USERS
+========================================================= */
+
 export interface UserListParams {
   page?: number;
   page_size?: number;
   search?: string;
   ordering?: string;
+  role?: AccountType;
+  est_bloque?: boolean;
 }
 
-/**
- * Payload d'inscription (UtilisateurRegisterSerializer)
- */
+/* =========================================================
+   PAYLOADS
+========================================================= */
+
 export interface UserRegisterPayload {
   username: string;
   email: string;
   password: string;
   role?: AccountType;
+  est_bloque?: boolean;
 }
 
-/**
- * Payload de mise à jour (si ton backend permet PATCH/PUT)
- * On ne met que les champs "safe" côté admin.
- */
 export interface UserUpdatePayload {
   username?: string;
   email?: string;
   role?: AccountType;
-  statut?: AccountStatus;
+  est_bloque?: boolean;
+  password?: string;
 }

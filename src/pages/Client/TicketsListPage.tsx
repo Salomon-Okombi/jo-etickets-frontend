@@ -1,4 +1,3 @@
-//src/pages/Client/TicketsListPage.tsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { EBillet } from "@/types/billets";
@@ -40,8 +39,13 @@ export default function TicketsListPage() {
     };
   }, []);
 
-  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
-  if (error) return <div style={{ padding: "2rem" }}>{error}</div>;
+  if (loading) {
+    return <div style={{ padding: "2rem" }}>Chargement…</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: "2rem" }}>{error}</div>;
+  }
 
   if (rows.length === 0) {
     return <div style={{ padding: "2rem" }}>Vous n’avez aucun billet.</div>;

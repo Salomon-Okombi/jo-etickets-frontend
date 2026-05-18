@@ -1,9 +1,12 @@
 // src/hooks/useAuth.ts
 import { useContext } from "react";
-import { AuthContext } from "@/app/providers/AuthProvider";
+import { AuthContext, type AuthContextType } from "@/app/providers/AuthProvider";
 
-// Je fournis un export nommé pour autoriser: import { useAuth } from "@/hooks/useAuth"
-export function useAuth() {
+/**
+ * Hook d'accès au contexte d'authentification
+ * Typé explicitement pour TypeScript
+ */
+export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
 
   if (!ctx) {

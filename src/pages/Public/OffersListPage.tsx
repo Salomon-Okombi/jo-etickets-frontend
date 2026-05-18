@@ -5,7 +5,14 @@ import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.a
 function kindLabel(code: string) {
   const c = (code || "").toUpperCase();
   if (c === "FAMILIALE") return "Famille";
-  return c;
+  if (c === "DUO") return "Duo";
+  if (c === "SOLO") return "Solo";
+  return c || "Offre";
+}
+
+function kindClass(code: string) {
+  // Classe CSS sûre : seulement lettres/chiffres/-
+  return kindLabel(code).toLowerCase().replace(/[^a-z0-9-]/g, "");
 }
 
 export default function OffersListPage() {
@@ -23,7 +30,7 @@ export default function OffersListPage() {
         setLoading(true);
         setError(null);
 
-        const rows = await listOfferCategories(); // maintenant: array garanti
+        const rows = await listOfferCategories(); // tableau garanti
         if (!mounted) return;
 
         setCats(rows);
@@ -54,7 +61,8 @@ export default function OffersListPage() {
         <div className="offers-page__hero-inner">
           <h1 className="offers-page__title">Offres</h1>
           <p className="offers-page__subtitle">
-            Cette page présente les catégories d’offres disponibles. Les catégories sont gérées par l’administration et peuvent évoluer.
+            Cette page présente les catégories d’offres disponibles. Les catégories sont gérées
+            par l’administration et peuvent évoluer.
           </p>
         </div>
       </section>
@@ -77,7 +85,7 @@ export default function OffersListPage() {
                 <article key={c.id} className="offer-card">
                   <header className="offer-card__header">
                     <span
-                      className={`offer-card__badge offer-card__badge--${kindLabel(c.code).toLowerCase()}`}
+                      className={`offer-card__badge offer-card__badge--${kindClass(c.code)}`}
                     >
                       {kindLabel(c.code)}
                     </span>
@@ -93,6 +101,7 @@ export default function OffersListPage() {
                       <dt>Nombre de billets</dt>
                       <dd>{c.nb_personnes}</dd>
                     </div>
+
                     <div className="offer-card__detail-row">
                       <dt>Cas d’usage</dt>
                       <dd>{c.cas_usage ? c.cas_usage : "—"}</dd>

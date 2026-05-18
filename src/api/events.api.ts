@@ -1,19 +1,30 @@
 // src/api/events.api.ts
-import api from "./axiosClient";
+import api from "@/api/axiosClient";
+
+/* =========================
+   TYPES
+========================= */
+
+export type EventStatus = "BROUILLON" | "PUBLIE" | "ARCHIVE";
 
 export interface Event {
   id: number;
   nom_evenement: string;
-  discipline: string;
-  date_evenement: string;
-  lieu: string;
-  description_courte: string;
-  description_longue: string;
-  image_url?: string;
-  statut: "BROUILLON" | "PUBLIE" | "ARCHIVE";
+  discipline?: string;
+  lieu?: string;
+  date_debut: string;   // ISO datetime
+  date_fin: string;     // ISO datetime
+  description_courte?: string;
+  description_longue?: string;
+  image_url?: string | null;
+  prix_base?: string;
+  statut: EventStatus;
 }
 
-/*  PAGINATION (OBLIGATOIRE POUR useEvents) */
+/* =========================
+   PAGINATION DRF
+========================= */
+
 export interface Paginated<T> {
   count: number;
   next: string | null;
@@ -21,24 +32,53 @@ export interface Paginated<T> {
   results: T[];
 }
 
-/* ===== PUBLIC ===== */
+/* =========================
+   PUBLIC API (LECTURE SEULE)
+========================= */
 
 export async function listEvents(
-  params?: any
+  params?: Record<string, any>
 ): Promise<Paginated<Event>> {
-  const { data } = await api.get("/evenements/", { params });
+  const { data } = await api.get<Paginated<Event>>(
+    "/evenements/",
+    { params }
+  );
   return data;
 }
 
 export async function getEvent(id: number): Promise<Event> {
-  const { data } = await api.get(`/evenements/${id}/`);
+  const { data } = await api.get<Event>(`/evenements/${id}/`);
   return data;
 }
 
-/* ===== ADMIN ===== */
+/* =========================
+   ADMIN API (CRUD)
+========================= */
 
-export async function createEvent(formData: FormData): Promise<Event> {
-  const { data } = await api.post("/evenements/admin/", formData);
+export async function listAdminEvents(
+  params?: Record<string, any>
+): Promise<Paginated<Event>> {
+  const { data } = await api.get<Paginated<Event>>(
+    "/evenements/admin/",
+    { params }
+  );
+  return data;
+}
+
+export async function getAdminEvent(id: number): Promise<Event> {
+  const { data } = await api.get<Event>(
+    `/evenements/admin/${id}/`
+  );
+  return data;
+}
+
+export async function createEvent(
+  formData: FormData
+): Promise<Event> {
+  const { data } = await api.post<Event>(
+    "/evenements/admin/",
+    formData
+  );
   return data;
 }
 
@@ -46,7 +86,7 @@ export async function updateEvent(
   id: number,
   formData: FormData
 ): Promise<Event> {
-  const { data } = await api.patch(
+  const { data } = await api.patch<Event>(
     `/evenements/admin/${id}/`,
     formData
   );

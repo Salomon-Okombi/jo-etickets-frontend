@@ -1,4 +1,4 @@
-//src/pages/Public/checkoutGatePage.tsx
+//Public/CheckoutGatePage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
@@ -11,26 +11,41 @@ export default function CheckoutGatePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     async function run() {
       if (!isAuthenticated) {
         navigate("/login", { state: { from: "/checkout" }, replace: true });
         return;
       }
+
       try {
         await syncToServer();
+        if (!mounted) return;
         navigate("/mon-espace/checkout", { replace: true });
       } catch {
+        if (!mounted) return;
         setError("Impossible de synchroniser le panier.");
       }
     }
+
     run();
-  }, [isAuthenticated]);
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, navigate, syncToServer]);
 
   return (
     <div style={{ padding: "2rem" }}>
       <div style={{ fontWeight: 900, fontSize: "1.2rem" }}>Préparation du paiement…</div>
-      {syncing ? <div style={{ marginTop: 8, opacity: 0.8 }}>Synchronisation du panier…</div> : null}
-      {error ? <div style={{ marginTop: 12, color: "#b42318" }}>{error}</div> : null}
+
+      {syncing ? (
+        <div style={{ marginTop: 8, opacity: 0.8 }}>Synchronisation du panier…</div>
+      ) : null}
+
+      {error ? (
+        <div style={{ marginTop: 12, color: "#b42318" }}>{error}</div>
+      ) : null}
     </div>
   );
 }

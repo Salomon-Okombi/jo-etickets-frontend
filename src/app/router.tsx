@@ -1,46 +1,38 @@
-//router.tsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // Layouts
-import MainLayout from "@/layouts/MainLayout";
-import PublicLayout from "@/layouts/PublicLayout";
-import ClientLayout from "@/layouts/ClientLayout";
-import AdminLayout from "@/layouts/AdminLayout";
-
-// Guards
-import PrivateRoute from "@/guards/PrivateRoute";
-import AdminRoute from "@/guards/AdminRoute";
-
-// Pages – Public
 import HomePage from "@/pages/Public/HomePage";
+import MainLayout from "@/layouts/MainLayout";
 import EventsListPage from "@/pages/Public/EventsListPage";
 import EventDetailPage from "@/pages/Public/EventDetailPage";
 import PublicOffersListPage from "@/pages/Public/OffersListPage";
+import PublicCartPage from "@/pages/Public/CartPage";
+import CheckoutGatePage from "@/pages/Public/CheckoutGatePage";
 
 // Pages – Auth
 import LoginPage from "@/pages/Auth/LoginPage";
 import RegisterPage from "@/pages/Auth/RegisterPage";
 
-// Pages – Client (mon espace)
-import CartPage from "@/pages/Client/CartPage";
+// Pages – Client
+import ClientCartPage from "@/pages/Client/CartPage";
 import CheckoutPage from "@/pages/Client/CheckoutPage";
 import ClientOffersListPage from "@/pages/Client/OffersListPage";
 import OrdersListPage from "@/pages/Client/OrdersListPage";
 import OrderDetailPage from "@/pages/Client/OrderDetailPage";
 import TicketsListPage from "@/pages/Client/TicketsListPage";
 import TicketDetailPage from "@/pages/Client/TicketDetailPage";
-
-
-
+import ProfilePage from "@/pages/Client/ProfilePage";
 
 // Pages – Admin
-import BilletAdminDetailPage from "@/pages/Admin/Billets/BilletAdminDetailPage";
 import DashboardPage from "@/pages/Admin/DashboardPage";
-import BilletAdminCreatePage from "@/pages/Admin/Billets/BilletAdminCreatePage";
-import BilletAdminEditPage from "@/pages/Admin/Billets/BilletAdminEditPage";
+
+import OrdersAdminListPage from "@/pages/Admin/Orders/OrdersAdminListPage";
 import OrderAdminDetailPage from "@/pages/Admin/Orders/OrderAdminDetailPage";
 
-
+import BilletsAdminListPage from "@/pages/Admin/Billets/BilletsAdminListPage";
+import BilletAdminCreatePage from "@/pages/Admin/Billets/BilletAdminCreatePage";
+import BilletAdminEditPage from "@/pages/Admin/Billets/BilletAdminEditPage";
+import BilletAdminDetailPage from "@/pages/Admin/Billets/BilletAdminDetailPage";
 
 import EventsAdminListPage from "@/pages/Admin/Events/EventsAdminList";
 import EventAdminCreatePage from "@/pages/Admin/Events/EventAdminCreate";
@@ -50,17 +42,15 @@ import OffersAdminListPage from "@/pages/Admin/Offers/OffersAdminList";
 import OfferAdminCreatePage from "@/pages/Admin/Offers/OfferAdminCreate";
 import OfferAdminEditPage from "@/pages/Admin/Offers/OfferAdminEdit";
 
+import OfferCategoriesAdminListPage from "@/pages/Admin/OfferCategories/OfferCategoriesAdminList";
+import OfferCategoryAdminCreatePage from "@/pages/Admin/OfferCategories/OfferCategoryAdminCreate";
+import OfferCategoryAdminEditPage from "@/pages/Admin/OfferCategories/OfferCategoryAdminEdit";
+
 import StatsPage from "@/pages/Admin/Stats/StatsPage";
+
 import UsersAdminListPage from "@/pages/Admin/Users/UsersAdminList";
 import UserAdminDetailPage from "@/pages/Admin/Users/UserAdminDetail";
 import UserAdminCreatePage from "@/pages/Admin/Users/UserAdminCreate";
-// NOUVEAUX : Admin Billets + Admin Commandes
-import BilletsAdminListPage from "@/pages/Admin/Billets/BilletsAdminListPage";
-import OrdersAdminListPage from "@/pages/Admin/Orders/OrdersAdminListPage";
-
-
-import PublicCartPage from "@/pages/Public/CartPage";
-import CheckoutGatePage from "@/pages/Public/CheckoutGatePage";
 
 // 404
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -81,11 +71,11 @@ export const router = createBrowserRouter([
 
           { path: "offres", element: <PublicOffersListPage /> },
 
-          { path: "login", element: <LoginPage /> },
-          { path: "register", element: <RegisterPage /> },
-
           { path: "panier", element: <PublicCartPage /> },
           { path: "checkout", element: <CheckoutGatePage /> },
+
+          { path: "login", element: <LoginPage /> },
+          { path: "register", element: <RegisterPage /> },
         ],
       },
 
@@ -98,10 +88,11 @@ export const router = createBrowserRouter([
           </PrivateRoute>
         ),
         children: [
-          // /mon-espace -> /mon-espace/commandes
           { index: true, element: <Navigate to="commandes" replace /> },
 
-          { path: "panier", element: <CartPage /> },
+          { path: "profil", element: <ProfilePage /> },
+
+          { path: "panier", element: <ClientCartPage /> },
           { path: "checkout", element: <CheckoutPage /> },
 
           { path: "offres", element: <ClientOffersListPage /> },
@@ -111,9 +102,6 @@ export const router = createBrowserRouter([
 
           { path: "billets", element: <TicketsListPage /> },
           { path: "billets/:id", element: <TicketDetailPage /> },
-
-        
-
         ],
       },
 
@@ -126,56 +114,61 @@ export const router = createBrowserRouter([
           </AdminRoute>
         ),
         children: [
-          // Dashboard par défaut
+          // Dashboard
           { index: true, element: <DashboardPage /> },
           { path: "dashboard", element: <DashboardPage /> },
 
-          // Commandes (Admin)
+          // Commandes
           { path: "commandes", element: <OrdersAdminListPage /> },
-          // Alias pratique : /admin/orders -> /admin/commandes
-          { path: "orders", element: <Navigate to="/admin/commandes" replace /> },
           { path: "commandes/:id", element: <OrderAdminDetailPage /> },
 
-          // Billets / Tickets (Admin)
+          // Billets
           { path: "billets", element: <BilletsAdminListPage /> },
-          // Alias pratique : /admin/tickets -> /admin/billets
-          { path: "tickets", element: <Navigate to="/admin/billets" replace /> },
-
-
           { path: "billets/nouveau", element: <BilletAdminCreatePage /> },
-          { path: "billets/:id", element: <BilletAdminEditPage /> },
+          { path: "billets/:id/edit", element: <BilletAdminEditPage /> },
+          { path: "billets/:id", element: <BilletAdminDetailPage /> },
 
-          // Events (Admin)
+          // Événements
           { path: "evenements", element: <EventsAdminListPage /> },
           { path: "evenements/nouveau", element: <EventAdminCreatePage /> },
           { path: "evenements/:id", element: <EventAdminEditPage /> },
 
-          // Offres (Admin)
+          // Offres
           { path: "offres", element: <OffersAdminListPage /> },
           { path: "offres/nouvelle", element: <OfferAdminCreatePage /> },
           { path: "offres/:id", element: <OfferAdminEditPage /> },
 
-          // Stats (Admin)
+          // Catégories d'offres (NOUVEAU)
+          { path: "offres/categories", element: <OfferCategoriesAdminListPage /> },
+          { path: "offres/categories/nouvelle", element: <OfferCategoryAdminCreatePage /> },
+          { path: "offres/categories/:id", element: <OfferCategoryAdminEditPage /> },
+
+          // Stats
           { path: "stats", element: <StatsPage /> },
 
-          // Users (Admin)
+          // Utilisateurs
           { path: "utilisateurs", element: <UsersAdminListPage /> },
           { path: "utilisateurs/nouveau", element: <UserAdminCreatePage /> },
           { path: "utilisateurs/:id", element: <UserAdminDetailPage /> },
-
-          { path: "billets", element: <BilletsAdminListPage /> },
-          { path: "billets/:id", element: <BilletAdminDetailPage /> },
         ],
       },
 
-      // ===================== Alias pratique =====================
-      // /dashboard -> /admin
+      // Alias pratique
       { path: "dashboard", element: <Navigate to="/admin" replace /> },
 
-      // ===================== 404 =====================
+      // 404
       { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);
 
 export default router;
+import PublicLayout from "@/layouts/PublicLayout";
+import ClientLayout from "@/layouts/ClientLayout";
+import AdminLayout from "@/layouts/AdminLayout";
+
+// Guards
+import PrivateRoute from "@/guards/PrivateRoute";
+import AdminRoute from "@/guards/AdminRoute";
+
+// Pages – Public

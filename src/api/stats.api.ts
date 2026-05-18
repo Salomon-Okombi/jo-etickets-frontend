@@ -1,5 +1,5 @@
 // src/api/stats.api.ts
-import  api  from "./axiosClient";
+import api from "./axiosClient";
 
 /* ------------------------------------------------------------------
    Types
@@ -15,9 +15,20 @@ export interface SalesStats {
   pic_ventes_heure: string | null; // ISO ou null
 }
 
+// Réponse de ton endpoint global_stats (analytics/views.py)
 export interface GlobalStats {
   ventes_totales: number;
   chiffre_affaires_total: string;
+  panier_moyen?: number | string;
+  nombre_offres_suivies?: number;
+  moyenne_ventes_jour_globale?: number | string;
+  derniere_mise_a_jour?: string | null;
+  top_5_offres?: Array<{
+    offre_id: number;
+    offre_nom: string | null;
+    nombre_ventes: number;
+    chiffre_affaires: string;
+  }>;
 }
 
 export interface Paginated<T> {
@@ -28,15 +39,14 @@ export interface Paginated<T> {
 }
 
 /* ------------------------------------------------------------------
-    Endpoints : /api/statistiques/ventes/
-   - GET    /ventes/                  -> listSalesStats
-   - GET    /ventes/:id/              -> getSalesStats
-   - GET    /ventes/global/           -> getGlobalSalesStats
+   Endpoints : /api/statistiques/ventes/
+   - GET    /statistiques/ventes/          -> listSalesStats
+   - GET    /statistiques/ventes/:id/      -> getSalesStats
+   - GET    /statistiques/ventes/global/   -> getGlobalSalesStats
 ------------------------------------------------------------------ */
 
 /**
  * Liste paginée des statistiques de ventes (admin seulement)
- * Option : filtrer par nom d’offre, ou trier (si DRF FilterBackend activé)
  */
 export async function listSalesStats(params?: {
   page?: number;
@@ -63,3 +73,4 @@ export async function getGlobalSalesStats(): Promise<GlobalStats> {
   const { data } = await api.get<GlobalStats>("/statistiques/ventes/global/");
   return data;
 }
+``

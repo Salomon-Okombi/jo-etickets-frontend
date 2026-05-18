@@ -1,7 +1,7 @@
-//src/pages/DashboardPage.tsx
+// src/pages/DashboardPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import  api  from "@/api/axiosClient";
+import api from "@/api/axiosClient";
 import useToast from "@/hooks/useToast";
 import "@/styles/admin.css";
 
@@ -9,16 +9,14 @@ import "@/styles/admin.css";
    Dashboard Admin (billetterie)
    - KPI : synthèse rapide
    - Table : tickets/réservations (priorité visuelle)
-   - Accès rapides : STATISTIQUES / UTILISATEURS / OFFRES / ÉVÉNEMENTS / COMMANDES
+   - Accès rapides : STATISTIQUES / UTILISATEURS / OFFRES / ÉVÉNÉNEMENTS / COMMANDES
    ========================================================================= */
 
 type OverviewStats = {
-  nb_evenements?: number;
-  nb_offres?: number;
-  nb_commandes?: number;
-  nb_tickets?: number;
-  nb_utilisateurs?: number;
-  chiffre_affaires?: number;
+  evenements: number;
+  offres: number;
+  reservations: number;
+  chiffre_affaires: string; // renvoyé en string (Decimal) côté API
 };
 
 type TicketStatus = "VALIDE" | "UTILISE" | "ANNULE" | "EXPIRE";
@@ -27,13 +25,13 @@ type Ticket = {
   id: number;
   numero_billet: string;
   utilisateur: number;
-  utilisateur_nom?: string;
+  utilisateur_nom?: string | null;
   offre: number;
-  offre_nom?: string;
-  qr_code: string;
+  offre_nom?: string | null;
+  qr_code?: string | null; // peut être absent selon serializer/permissions
   prix_paye: string;
   statut: TicketStatus;
-  date_achat?: string;
+  date_achat?: string | null;
 };
 
 type Paginated<T> = {
@@ -43,17 +41,33 @@ type Paginated<T> = {
   results: T[];
 };
 
-function formatNumber(value?: number) {
+function isCanceledError(err: any) {
+  return (
+    err?.name === "CanceledError" ||
+    err?.name === "AbortError" ||
+    err?.code === "ERR_CANCELED"
+  );
+}
+
+function toNumber(v: string | number | undefined | null): number {
+  if (v === undefined || v === null) return 0;
+  if (typeof v === "number") return v;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatNumber(value?: number | null) {
   if (value === undefined || value === null) return "—";
   return value.toLocaleString("fr-FR");
 }
 
-function formatCurrency(value?: number) {
+function formatCurrency(value?: number | string | null) {
   if (value === undefined || value === null) return "—";
-  return value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+  const n = toNumber(value);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 }
 
-function asQrSrc(qr: string) {
+function asQrSrc(qr?: string | null) {
   if (!qr) return "";
   if (qr.startsWith("data:image")) return qr;
   return `data:image/png;base64,${qr}`;
@@ -136,13 +150,18 @@ export default function DashboardPage() {
           signal: controller.signal,
         });
 
+        if (controller.signal.aborted) return;
         setStats(data);
       } catch (err: any) {
-        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
-        console.error("Dashboard: stats overview error =", err);
-        setErrorStats("Statistiques indisponibles pour le moment.");
+        if (isCanceledError(err) || controller.signal.aborted) return;
+
+        const status = err?.response?.status;
+        if (status === 401) setErrorStats("Non authentifié (401). Connecte-toi.");
+        else if (status === 403) setErrorStats("Accès refusé (403). Admin requis.");
+        else if (status === 404) setErrorStats("Endpoint overview introuvable (404).");
+        else setErrorStats("Statistiques indisponibles pour le moment.");
       } finally {
-        setLoadingStats(false);
+        if (!controller.signal.aborted) setLoadingStats(false);
       }
     }
 
@@ -171,14 +190,19 @@ export default function DashboardPage() {
           signal: controller.signal,
         });
 
+        if (controller.signal.aborted) return;
+
         setTickets(data.results);
         setTicketsCount(data.count);
       } catch (err: any) {
-        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
-        console.error("Dashboard: tickets error =", err);
-        setErrorTickets("Chargement des tickets impossible.");
+        if (isCanceledError(err) || controller.signal.aborted) return;
+
+        const status = err?.response?.status;
+        if (status === 401) setErrorTickets("Non authentifié (401). Connecte-toi.");
+        else if (status === 403) setErrorTickets("Accès refusé (403). Admin requis.");
+        else setErrorTickets("Chargement des tickets impossible.");
       } finally {
-        setLoadingTickets(false);
+        if (!controller.signal.aborted) setLoadingTickets(false);
       }
     }
 
@@ -186,7 +210,10 @@ export default function DashboardPage() {
     return () => controller.abort();
   }, [page, pageSize, search]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(ticketsCount / pageSize)), [ticketsCount, pageSize]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(ticketsCount / pageSize)),
+    [ticketsCount, pageSize]
+  );
 
   // Evite page > totalPages si changement pageSize/recherche
   useEffect(() => {
@@ -194,14 +221,16 @@ export default function DashboardPage() {
   }, [page, totalPages]);
 
   const reservationsTotal = useMemo(() => {
-    return stats?.nb_tickets ?? ticketsCount ?? 0;
-  }, [stats?.nb_tickets, ticketsCount]);
+    return stats?.reservations ?? ticketsCount ?? 0;
+  }, [stats?.reservations, ticketsCount]);
 
   const showError = errorStats ?? errorTickets;
 
   function openQrModal(ticket: Ticket) {
-    setQrModalTitle(`QR Code — Billet ${ticket.numero_billet}`);
-    setQrModalSrc(asQrSrc(ticket.qr_code));
+    const title = `QR Code — Billet ${ticket.numero_billet || ticket.id}`;
+    const src = asQrSrc(ticket.qr_code ?? "");
+    setQrModalTitle(title);
+    setQrModalSrc(src);
     setQrModalOpen(true);
   }
 
@@ -214,7 +243,7 @@ export default function DashboardPage() {
   async function copyText(text: string, label = "Copié") {
     try {
       await navigator.clipboard.writeText(text);
-      showToast(`${label} `, "success");
+      showToast(label, "success");
     } catch {
       showToast("Impossible de copier (permissions navigateur).", "error");
     }
@@ -222,7 +251,6 @@ export default function DashboardPage() {
 
   return (
     <div className="admin-page">
-      {/* Titre */}
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Tableau de bord</div>
         <div className="admin-subtitle">
@@ -230,25 +258,23 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Alerte accessible */}
       {showError ? (
         <div className="admin-alert" role="alert">
           {showError}
         </div>
       ) : null}
 
-      {/* KPI */}
       <div style={{ marginTop: "1rem" }} className="admin-kpi-grid">
         <KpiCard
           label="Épreuves"
-          value={loadingStats ? "…" : formatNumber(stats?.nb_evenements)}
+          value={loadingStats ? "…" : formatNumber(stats?.evenements)}
           hint="Catalogue des événements sportifs."
           linkTo="/admin/evenements"
           linkLabel="Ouvrir"
         />
         <KpiCard
           label="Offres"
-          value={loadingStats ? "…" : formatNumber(stats?.nb_offres)}
+          value={loadingStats ? "…" : formatNumber(stats?.offres)}
           hint="Packs et tarification."
           linkTo="/admin/offres"
           linkLabel="Ouvrir"
@@ -269,7 +295,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ACCÈS RAPIDES */}
       <section style={{ marginTop: "1.6rem" }}>
         <div className="admin-table-title">Modules principaux</div>
 
@@ -316,7 +341,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* TABLE Tickets */}
       <div className="admin-table-wrap" style={{ marginTop: "1.6rem" }}>
         <div className="admin-table-head">
           <div>
@@ -349,6 +373,7 @@ export default function DashboardPage() {
 
             <button
               className="admin-btn"
+              type="button"
               onClick={() => {
                 setPage(1);
                 setSearch(searchInput.trim());
@@ -386,7 +411,11 @@ export default function DashboardPage() {
 
                     <td className="admin-td-center">
                       {t.qr_code ? (
-                        <button className="admin-btn admin-btn--sm" onClick={() => openQrModal(t)}>
+                        <button
+                          className="admin-btn admin-btn--sm"
+                          type="button"
+                          onClick={() => openQrModal(t)}
+                        >
                           QR
                         </button>
                       ) : (
@@ -399,12 +428,17 @@ export default function DashboardPage() {
                     </td>
 
                     <td className="admin-td-right">
-                      <Link className="admin-btn admin-btn--sm" to={`/admin/billets/${t.id}`} style={{ marginRight: "0.4rem" }}>
+                      <Link
+                        className="admin-btn admin-btn--sm"
+                        to={`/admin/billets/${t.id}`}
+                        style={{ marginRight: "0.4rem" }}
+                      >
                         Détails
                       </Link>
 
                       <button
                         className="admin-btn admin-btn--sm"
+                        type="button"
                         onClick={() => copyText(t.numero_billet, "Numéro copié")}
                         style={{ marginRight: "0.4rem" }}
                       >
@@ -412,7 +446,11 @@ export default function DashboardPage() {
                       </button>
 
                       {t.qr_code ? (
-                        <button className="admin-btn admin-btn--sm" onClick={() => copyText(asQrSrc(t.qr_code), "QR copié")}>
+                        <button
+                          className="admin-btn admin-btn--sm"
+                          type="button"
+                          onClick={() => copyText(asQrSrc(t.qr_code ?? ""), "QR copié")}
+                        >
                           Copier QR
                         </button>
                       ) : null}
@@ -428,11 +466,17 @@ export default function DashboardPage() {
               </div>
 
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="admin-btn admin-btn--sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                <button
+                  className="admin-btn admin-btn--sm"
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
                   ←
                 </button>
                 <button
                   className="admin-btn admin-btn--sm"
+                  type="button"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
@@ -444,13 +488,17 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Modal QR */}
       {qrModalOpen ? (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true" onClick={closeQrModal}>
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={closeQrModal}
+        >
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal__header">
               <div className="admin-modal__title">{qrModalTitle}</div>
-              <button className="admin-btn admin-btn--sm" onClick={closeQrModal}>
+              <button className="admin-btn admin-btn--sm" type="button" onClick={closeQrModal}>
                 Fermer
               </button>
             </div>
@@ -465,7 +513,11 @@ export default function DashboardPage() {
 
             <div className="admin-modal__footer">
               {qrModalSrc ? (
-                <button className="admin-btn admin-btn--sm" onClick={() => copyText(qrModalSrc, "QR copié")}>
+                <button
+                  className="admin-btn admin-btn--sm"
+                  type="button"
+                  onClick={() => copyText(qrModalSrc, "QR copié")}
+                >
                   Copier QR
                 </button>
               ) : null}

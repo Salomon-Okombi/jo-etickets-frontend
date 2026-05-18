@@ -1,0 +1,627 @@
+/* ===========================
+   Event detail page
+=========================== */
+
+.event-detail {
+  background: #f6f7fb;
+  color: #0f172a;
+}
+
+/* --- Hero --- */
+.event-detail__hero {
+  padding: 24px 0 18px;
+}
+
+.event-detail__hero-inner {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.event-detail__breadcrumbs {
+  font-size: 14px;
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 10px;
+}
+
+.event-detail__breadcrumbs a {
+  color: rgba(15, 23, 42, 0.85);
+  text-decoration: none;
+}
+
+.event-detail__breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.event-detail__date {
+  font-size: 14px;
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 10px;
+}
+
+.event-detail__title {
+  font-size: clamp(24px, 3.1vw, 38px);
+  line-height: 1.15;
+  font-weight: 900;
+  margin: 0 0 10px;
+}
+
+.event-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: rgba(15, 23, 42, 0.75);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.event-detail__meta span {
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+
+.event-detail__description {
+  margin-top: 8px;
+  max-width: 78ch;
+  color: rgba(15, 23, 42, 0.82);
+  line-height: 1.55;
+}
+
+/* ===========================
+   Shared CTA button
+=========================== */
+
+.event-card__cta {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #ff3355, #ffb300);
+  color: #0f172a;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.14);
+  transition: transform 0.12s ease, filter 0.12s ease, opacity 0.12s ease;
+}
+
+.event-card__cta:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.05);
+}
+
+.event-card__cta:active {
+  transform: translateY(0);
+}
+
+.event-card__cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ===========================
+   Offers section
+=========================== */
+
+.event-detail__offers {
+  background: #ffffff;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 22px 0 34px;
+}
+
+.event-detail__offers-inner {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.event-detail__state {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.85);
+  margin-bottom: 14px;
+}
+
+.event-detail__state--error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+  color: #7f1d1d;
+}
+
+.event-detail__image-wrapper {
+  width: 100%;
+  max-width: 520px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(15, 23, 42, 0.04);
+  margin: 14px 0 18px;
+}
+
+.event-detail__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.event-detail__offers-title {
+  font-size: 22px;
+  font-weight: 900;
+  margin: 10px 0 12px;
+}
+
+.event-detail__offers-subtitle {
+  margin: -6px 0 18px;
+  color: rgba(15, 23, 42, 0.7);
+  line-height: 1.4;
+}
+
+/* Grid */
+.event-detail__offers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* ===========================
+   Offer card
+=========================== */
+
+.offer-card {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.offer-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.09);
+}
+
+.offer-card__header {
+  padding: 14px 14px 10px;
+}
+
+.offer-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+/* Badges variants */
+.offer-card__badge--solo {
+  background: rgba(56, 189, 248, 0.16);
+  color: #075985;
+}
+
+.offer-card__badge--duo {
+  background: rgba(244, 114, 182, 0.16);
+  color: #9d174d;
+}
+
+.offer-card__badge--famille,
+.offer-card__badge--familiale {
+  background: rgba(253, 186, 116, 0.18);
+  color: #9a3412;
+}
+
+.offer-card__title {
+  font-size: 18px;
+  font-weight: 900;
+  margin: 2px 0 0;
+}
+
+.offer-card__description {
+  padding: 0 14px 12px;
+  color: rgba(15, 23, 42, 0.75);
+  line-height: 1.45;
+  min-height: 44px;
+}
+
+.offer-card__details {
+  padding: 0 14px 12px;
+  margin: 0;
+}
+
+.offer-card__detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px dashed rgba(15, 23, 42, 0.10);
+}
+
+.offer-card__detail-row:first-child {
+  border-top: none;
+}
+
+.offer-card__detail-row dt {
+  color: rgba(15, 23, 42, 0.65);
+  font-size: 13px;
+}
+
+.offer-card__detail-row dd {
+  margin: 0;
+  font-weight: 900;
+  color: rgba(15, 23, 42, 0.90);
+  font-size: 13px;
+}
+
+.offer-card__actions {
+  padding: 12px 14px 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.offer-card__cta {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.92);
+  transition: background 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+}
+
+.offer-card__cta:hover {
+  background: rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.offer-card__cta:active {
+  transform: translateY(0);
+}
+
+.offer-card__cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+@media (max-width: 980px) {
+  .event-detail__offers-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .event-detail__image-wrapper {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .event-detail__offers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-detail__hero {
+    padding-top: 18px;
+  }
+}
+
+
+.events-page__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 cartes */
+  gap: 16px;
+}
+
+
+
+@media (max-width: 900px) {
+  .events-page__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .events-page__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.event-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+  min-height: 220px;
+}
+
+.event-card__image {
+  width: 100%;
+  height: 210px;
+  object-fit: cover;
+  display: block;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.event-card__header {
+  padding: 14px 14px 8px;
+}
+
+.event-card__date {
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.65);
+}
+
+.event-card__title {
+  margin: 8px 0 6px;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.event-card__discipline {
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.75);
+}
+
+.event-card__description {
+  padding: 0 14px 14px;
+  color: rgba(15, 23, 42, 0.75);
+  line-height: 1.45;
+  flex: 1;
+}
+
+.event-card__actions {
+  padding: 12px 14px 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: auto;
+}
+
+.event-card__link {
+  text-decoration: none;
+  font-weight: 800;
+  color: rgba(15, 23, 42, 0.85);
+}
+
+.event-card__link:hover {
+  text-decoration: underline;
+}
+
+/* =============================
+   BARRE DE RECHERCHE EVENEMENTS
+============================= */
+
+.events-page__search {
+  margin-top: 1.2rem;
+  display: flex;
+  gap: 0.6rem;
+  max-width: 600px;
+}
+
+.events-page__search-input {
+  flex: 1;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.25);
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.events-page__search-input:focus {
+  border-color: #ff3b30;
+  box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.15);
+}
+
+.events-page__search-btn {
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 900;
+  background: linear-gradient(120deg, #ff3b30, #ff9500);
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+/* =============================
+   RESPONSIVE MOBILE
+============================= */
+
+@media (max-width: 600px) {
+  .events-page__search {
+    flex-direction: column;
+  }
+
+  .events-page__search-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* =========================================
+   HOME – TOP 3 DERNIÈRES ÉPREUVES
+========================================= */
+
+.home-events {
+  background: #ffffff;
+  padding: 3rem 0 3.5rem;
+}
+
+.home-events .home-section__inner {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+/* Titre & sous-titre */
+.home-events .home-section__title {
+  font-size: clamp(22px, 2.5vw, 32px);
+  font-weight: 900;
+  margin-bottom: 0.4rem;
+}
+
+.home-events .home-section__subtitle {
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 1.6rem;
+  max-width: 70ch;
+}
+
+/* =========================================
+   GRID
+========================================= */
+
+.home-events__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.8rem;
+}
+
+/* =========================================
+   EVENT CARD
+========================================= */
+
+.home-event-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-event-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+}
+
+/* Image */
+.home-event-card img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+/* Contenu */
+.home-event-card__content {
+  padding: 0.95rem 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Date */
+.home-event-card__date {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.6);
+  margin-bottom: 0.4rem;
+}
+
+/* Titre */
+.home-event-card__title {
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.25;
+  margin: 0 0 0.35rem;
+}
+
+/* Meta (lieu · discipline) */
+.home-event-card__meta {
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.7);
+  margin-bottom: 0.6rem;
+}
+
+/* Description courte */
+.home-event-card__text {
+  font-size: 14px;
+  color: rgba(15, 23, 42, 0.8);
+  line-height: 1.45;
+  margin-bottom: 0.85rem;
+
+  /* Clamp 3 lignes */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Lien */
+.home-event-card__link {
+  margin-top: auto;
+  align-self: flex-start;
+  font-weight: 900;
+  font-size: 14px;
+  text-decoration: none;
+  color: #ff3b30;
+}
+
+.home-event-card__link:hover {
+  text-decoration: underline;
+}
+
+/* =========================================
+   CTA ROW
+========================================= */
+
+.home-section__cta-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.home-section__link {
+  font-weight: 900;
+  text-decoration: none;
+  color: rgba(15, 23, 42, 0.9);
+}
+
+.home-section__link:hover {
+  text-decoration: underline;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 900px) {
+  .home-events__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .home-events {
+    padding: 2.2rem 0 2.6rem;
+  }
+
+  .home-events__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-event-card img {
+    height: 150px;
+  }
+}
+

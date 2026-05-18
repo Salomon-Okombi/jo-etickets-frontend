@@ -1,19 +1,19 @@
-//src/pages/Public/EventsListPage.tsx
+// src/pages/Events/EventsListPage.tsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import api from "@/utils/http";
-import type { Offer } from "@/types/offers";
-import { useAuth } from "@/hooks/useAuth";
+import api from "@/api/axiosClient";
 
 type EventItem = {
   id: number;
   nom_evenement: string;
   description_courte: string;
+  description_longue?: string;
   image_url?: string | null;
   lieu: string;
-  date_evenement: string;
-  heure_evenement?: string | null;
+  date_debut: string;
+  date_fin: string;
   discipline?: string | null;
+  prix_base?: number | string;
 };
 
 type Paginated<T> = {
@@ -25,15 +25,42 @@ type Paginated<T> = {
 
 const FALLBACK_IMAGE = "/images/event-default.jpg";
 
-const EventsListPage: React.FC = () => {
+/* ===============================
+   HELPERS
+=============================== */
+
+function unwrap<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
+}
+
+function fmtMoney(v?: number | string) {
+  if (v === undefined || v === null) return "—";
+  const n = typeof v === "string" ? Number(v) : v;
+  if (!Number.isFinite(n)) return String(v);
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
+
+function formatDateTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("fr-FR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function EventsListPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
-  const [addingId, setAddingId] = useState<number | null>(null);
-
-  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,23 +73,22 @@ const EventsListPage: React.FC = () => {
 
         const params: Record<string, string> = {};
         const q = searchParams.get("q");
-
         if (q) {
           params.search = q;
           setSearch(q);
         }
 
-        const { data } = await api.get<Paginated<EventItem>>(
+        const { data } = await api.get<Paginated<EventItem> | EventItem[]>(
           "/evenements/",
           { params }
         );
 
         if (!mounted) return;
-        setEvents(data.results);
+        setEvents(unwrap<EventItem>(data));
       } catch {
-        if (mounted) {
-          setError("Impossible de charger les épreuves.");
-        }
+        if (!mounted) return;
+        setError("Impossible de charger les événements.");
+        setEvents([]);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -74,80 +100,30 @@ const EventsListPage: React.FC = () => {
     };
   }, [searchParams]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    search.trim()
-      ? setSearchParams({ q: search.trim() })
-      : setSearchParams({});
-  };
+    const q = search.trim();
+    q ? setSearchParams({ q }) : setSearchParams({});
+  }
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("fr-FR", {
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-
-  const formatTime = (event: EventItem) => {
-    if (!event.heure_evenement) return null;
-    const [h, m] = event.heure_evenement.split(":");
-    const d = new Date();
-    d.setHours(Number(h), Number(m || 0));
-    return d.toLocaleTimeString("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const handleAddToCart = async (event: EventItem) => {
-    if (!isAuthenticated) {
-      navigate("/login", { state: { from: "/evenements" } });
-      return;
-    }
-
-    try {
-      setAddingId(event.id);
-
-      const { data } = await api.get<Paginated<Offer>>("/offres/", {
-        params: { evenement: event.id, statut: "DISPONIBLE" },
-      });
-
-      const offers = data.results;
-      if (!offers.length) {
-        setError("Aucune offre disponible pour cette épreuve.");
-        return;
-      }
-
-      const bestOffer = offers.reduce((a, b) =>
-        Number(b.prix) < Number(a.prix) ? b : a
-      );
-
-      await api.post("/paniers/add/", {
-        offre: bestOffer.id,
-        quantite: 1,
-      });
-    } catch {
-      setError("Impossible d’ajouter l’offre au panier.");
-    } finally {
-      setAddingId(null);
-    }
-  };
+  function handleAddToCart(eventId: number) {
+    navigate(`/evenements/${eventId}?reserve=1`);
+  }
 
   return (
     <div className="events-page">
       <section className="events-page__hero">
         <div className="events-page__hero-inner">
-          <h1 className="events-page__title">Épreuves et événements</h1>
+          <h1 className="events-page__title">Boutique</h1>
           <p className="events-page__subtitle">
-            Parcourez la billetterie officielle et choisissez les épreuves.
+            Choisissez un événement, puis sélectionnez une offre.
           </p>
 
           <form className="events-page__search" onSubmit={handleSearchSubmit}>
             <input
               className="events-page__search-input"
               type="text"
-              placeholder="Rechercher une épreuve"
+              placeholder="Rechercher un événement"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -183,8 +159,8 @@ const EventsListPage: React.FC = () => {
 
                   <header className="event-card__header">
                     <div className="event-card__date">
-                      {formatDate(event.date_evenement)}
-                      {formatTime(event) && ` · ${formatTime(event)}`}
+                      {formatDateTime(event.date_debut)} →{" "}
+                      {formatDateTime(event.date_fin)}
                     </div>
 
                     <h2 className="event-card__title">
@@ -196,6 +172,11 @@ const EventsListPage: React.FC = () => {
                         {event.discipline}
                       </div>
                     )}
+
+                    <div style={{ opacity: 0.85, marginTop: 6 }}>
+                      Prix de base :{" "}
+                      <strong>{fmtMoney(event.prix_base)}</strong>
+                    </div>
                   </header>
 
                   <p className="event-card__description">
@@ -211,13 +192,11 @@ const EventsListPage: React.FC = () => {
                     </Link>
 
                     <button
+                      type="button"
                       className="event-card__cta"
-                      onClick={() => handleAddToCart(event)}
-                      disabled={addingId === event.id}
+                      onClick={() => handleAddToCart(event.id)}
                     >
-                      {addingId === event.id
-                        ? "Ajout en cours"
-                        : "Ajouter au panier"}
+                      Ajouter au panier
                     </button>
                   </div>
                 </article>
@@ -228,6 +207,4 @@ const EventsListPage: React.FC = () => {
       </section>
     </div>
   );
-};
-
-export default EventsListPage;
+}

@@ -1857,7 +1857,7 @@ body,
 }
 
 .not-found__text code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+  font-family: Monaco, ui-monospace, SFMono-Regular, Menlo,  Consolas,
     "Liberation Mono", "Courier New", monospace;
   font-size: 0.9rem;
   background: rgba(15, 23, 42, 0.06);

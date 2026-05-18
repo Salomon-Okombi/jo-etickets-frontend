@@ -1,6 +1,6 @@
-//src/pages/Stats/StatsPage.tsx
+// src/pages/Stats/StatsPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import api  from "@/api/axiosClient";
+import api from "@/api/axiosClient";
 import "@/styles/admin.css";
 
 type TopOffre = {
@@ -23,10 +23,10 @@ type GlobalStats = {
 type StatVente = {
   id: number;
   offre: number;
-  offre_nom: string;
+  offre_nom: string | null;
   nombre_ventes: number;
   chiffre_affaires: string | number;
-  date_derniere_maj: string;
+  date_derniere_maj: string | null;
   moyenne_ventes_jour: string | number;
   pic_ventes_heure: string | null;
 };
@@ -39,6 +39,24 @@ type Paginated<T> = {
 };
 
 const PAGE_SIZES = [10, 20, 50] as const;
+
+type SortKey =
+  | "ventes_desc"
+  | "ventes_asc"
+  | "ca_desc"
+  | "ca_asc"
+  | "maj_desc"
+  | "maj_asc"
+  | "nom_asc"
+  | "nom_desc";
+
+function isCanceledError(err: any) {
+  return (
+    err?.code === "ERR_CANCELED" ||
+    err?.name === "CanceledError" ||
+    err?.name === "AbortError"
+  );
+}
 
 function toNumber(v: string | number | undefined | null): number {
   if (v === undefined || v === null) return 0;
@@ -89,25 +107,19 @@ function sortLabel(key: SortKey) {
   }
 }
 
-type SortKey =
-  | "ventes_desc"
-  | "ventes_asc"
-  | "ca_desc"
-  | "ca_asc"
-  | "maj_desc"
-  | "maj_asc"
-  | "nom_asc"
-  | "nom_desc";
-
 function sortStats(stats: StatVente[], sort: SortKey) {
   const arr = [...stats];
+
   arr.sort((a, b) => {
     const ventesA = a.nombre_ventes ?? 0;
     const ventesB = b.nombre_ventes ?? 0;
+
     const caA = toNumber(a.chiffre_affaires);
     const caB = toNumber(b.chiffre_affaires);
+
     const majA = a.date_derniere_maj ? new Date(a.date_derniere_maj).getTime() : 0;
     const majB = b.date_derniere_maj ? new Date(b.date_derniere_maj).getTime() : 0;
+
     const nomA = (a.offre_nom ?? "").toLowerCase();
     const nomB = (b.offre_nom ?? "").toLowerCase();
 
@@ -132,14 +144,11 @@ function sortStats(stats: StatVente[], sort: SortKey) {
         return 0;
     }
   });
+
   return arr;
 }
 
-function KpiCard(props: {
-  label: string;
-  value: string;
-  hint: string;
-}) {
+function KpiCard(props: { label: string; value: string; hint: string }) {
   return (
     <div className="admin-kpi-card">
       <div className="admin-kpi-card__label">{props.label}</div>
@@ -162,24 +171,23 @@ export default function StatsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(20);
 
-  // recherche locale (sur résultats récupérés)
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
-  // tri local
   const [sortKey, setSortKey] = useState<SortKey>("ventes_desc");
 
-  // debounce search
+  const [refreshTick, setRefreshTick] = useState(0);
+
   useEffect(() => {
     const t = window.setTimeout(() => {
       setPage(1);
       setSearch(searchInput.trim());
     }, 350);
+
     return () => window.clearTimeout(t);
   }, [searchInput]);
 
-  // ✅ Endpoints (SANS /api car axios baseURL est très probablement .../api)
-  // => correspond à /api/statistiques/ventes/...
+  // Endpoints (baseURL axios inclut déjà /api)
   const ENDPOINT_GLOBAL = "/statistiques/ventes/global/";
   const ENDPOINT_LIST = "/statistiques/ventes/";
 
@@ -190,25 +198,29 @@ export default function StatsPage() {
       try {
         setLoadingGlobal(true);
         setError(null);
-        const { data } = await api.get<GlobalStats>(ENDPOINT_GLOBAL, { signal: controller.signal });
+
+        const { data } = await api.get<GlobalStats>(ENDPOINT_GLOBAL, {
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
         setGlobalStats(data);
       } catch (err: any) {
-        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
+        if (isCanceledError(err) || controller.signal.aborted) return;
 
         const status = err?.response?.status;
         if (status === 401) setError("Non authentifié (401). Connecte-toi.");
         else if (status === 403) setError("Accès refusé (403). Admin requis.");
-        else if (status === 404) setError("Endpoint stats global introuvable (404). Vérifie /api/statistiques/ventes/global/.");
+        else if (status === 404) setError("Endpoint stats global introuvable (404).");
         else setError("Chargement des statistiques globales impossible.");
-        console.error("StatsPage global error:", err);
       } finally {
-        setLoadingGlobal(false);
+        if (!controller.signal.aborted) setLoadingGlobal(false);
       }
     }
 
     fetchGlobal();
     return () => controller.abort();
-  }, []);
+  }, [refreshTick]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -218,56 +230,51 @@ export default function StatsPage() {
         setLoadingList(true);
         setError(null);
 
-        // Pagination DRF
         const params: Record<string, string | number> = {
           page,
           page_size: pageSize,
         };
 
-        // NOTE: ton ViewSet n'a pas de SearchFilter déclaré.
-        // On ne force pas un `search=` serveur ici.
         const { data } = await api.get<Paginated<StatVente>>(ENDPOINT_LIST, {
           params,
           signal: controller.signal,
         });
 
+        if (controller.signal.aborted) return;
         setStats(data.results);
         setCount(data.count);
       } catch (err: any) {
-        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
+        if (isCanceledError(err) || controller.signal.aborted) return;
 
         const status = err?.response?.status;
         if (status === 401) setError("Non authentifié (401). Connecte-toi.");
         else if (status === 403) setError("Accès refusé (403). Admin requis.");
-        else if (status === 404) setError("Endpoint stats introuvable (404). Vérifie /api/statistiques/ventes/.");
+        else if (status === 404) setError("Endpoint stats introuvable (404).");
         else setError("Chargement des statistiques impossible.");
-        console.error("StatsPage list error:", err);
       } finally {
-        setLoadingList(false);
+        if (!controller.signal.aborted) setLoadingList(false);
       }
     }
 
     fetchList();
     return () => controller.abort();
-  }, [page, pageSize]);
+  }, [page, pageSize, refreshTick]);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(count / pageSize)), [count, pageSize]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(count / pageSize)),
+    [count, pageSize]
+  );
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  // filtre local sur la page courante
   const filtered = useMemo(() => {
     if (!search) return stats;
     const needle = search.toLowerCase();
-    return stats.filter((s) => {
-      const nom = (s.offre_nom ?? "").toLowerCase();
-      return nom.includes(needle);
-    });
+    return stats.filter((s) => (s.offre_nom ?? "").toLowerCase().includes(needle));
   }, [stats, search]);
 
-  // tri local
   const sorted = useMemo(() => sortStats(filtered, sortKey), [filtered, sortKey]);
 
   const showLoading = loadingGlobal || loadingList;
@@ -287,12 +294,11 @@ export default function StatsPage() {
         </div>
       ) : null}
 
-      {/* KPI */}
       <div className="admin-kpi-grid" style={{ marginTop: "1rem" }}>
         <KpiCard
           label="Ventes totales"
           value={loadingGlobal ? "…" : formatNumber(globalStats?.ventes_totales)}
-          hint="Total des billets vendus (toutes offres)."
+          hint="Total des ventes (toutes offres)."
         />
         <KpiCard
           label="Chiffre d’affaires"
@@ -311,13 +317,15 @@ export default function StatsPage() {
         />
       </div>
 
-      {/* Top 5 */}
       <section style={{ marginTop: "1.6rem" }}>
         <div className="admin-table-wrap">
           <div className="admin-table-head">
             <div>
               <div className="admin-table-title">Top 5 offres (par ventes)</div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
+              <div
+                className="admin-text-muted"
+                style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}
+              >
                 Dernière MAJ : {loadingGlobal ? "…" : formatDate(globalStats?.derniere_mise_a_jour)}
               </div>
             </div>
@@ -352,13 +360,15 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Table complète */}
       <section style={{ marginTop: "1.6rem" }}>
         <div className="admin-table-wrap">
           <div className="admin-table-head">
             <div>
-              <div className="admin-table-title">Toutes les offres</div>
-              <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
+              <div className="admin-table-title">Toutes les offres (statistiques)</div>
+              <div
+                className="admin-text-muted"
+                style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}
+              >
                 {count.toLocaleString("fr-FR")} ligne(s) — page {page}/{totalPages}
               </div>
             </div>
@@ -401,7 +411,12 @@ export default function StatsPage() {
                 ))}
               </select>
 
-              <button className="admin-btn" onClick={() => setPage(1)} disabled={showLoading}>
+              <button
+                className="admin-btn"
+                type="button"
+                onClick={() => setRefreshTick((t) => t + 1)}
+                disabled={showLoading}
+              >
                 {showLoading ? "…" : "Actualiser"}
               </button>
             </div>
@@ -443,19 +458,25 @@ export default function StatsPage() {
                   {count.toLocaleString("fr-FR")} ligne(s) — page {page}/{totalPages}
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="admin-btn admin-btn--sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  <button
+                    className="admin-btn admin-btn--sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
                     ←
                   </button>
-                  <button className="admin-btn admin-btn--sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                  <button
+                    className="admin-btn admin-btn--sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
                     →
                   </button>
                 </div>
               </div>
 
-              {/* petit badge info */}
               <div style={{ padding: "0.85rem 1rem" }} className="admin-text-muted">
-                <span className="admin-badge admin-badge--muted">Info</span>{" "}
-                Recherche/tri effectués localement (sur la page chargée). Si tu veux une recherche serveur, on peut ajouter SearchFilter côté ViewSet.
+                Recherche et tri effectués localement sur la page chargée.
               </div>
             </div>
           )}

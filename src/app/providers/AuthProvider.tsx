@@ -1,29 +1,51 @@
-//app/providers/AuthProvider.tsx
+// src/app/providers/AuthProvider.tsx
 import { createContext, useEffect, useState } from "react";
-import type { User } from "@/types/auth";
+import api from "@/api/axiosClient";
+import type { UserProfile } from "@/types/users";
 import {
-  getProfile,
   initAuthFromStorage,
   clearStoredTokens,
 } from "@/api/auth.api";
-import { normalizeUser } from "@/utils/authNormalize";
 
-interface AuthContextType {
-  user: User | null;
+/* =========================================================
+   TYPE DU CONTEXTE AUTH
+========================================================= */
+
+export interface AuthContextType {
+  user: UserProfile | null;
   isAuthenticated: boolean;
   loading: boolean;
-  setUser: (user: User | null) => void;
+
+  setUser: (user: UserProfile | null) => void;
+  refreshUser: () => Promise<void>;
   logout: () => void;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
+/* =========================================================
+   CONTEXTE
+========================================================= */
+
+export const AuthContext = createContext<AuthContextType | null>(null);
+
+/* =========================================================
+   PROVIDER
+========================================================= */
 
 const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* -------------------------
+     Rafraîchir le profil
+  -------------------------- */
+  const refreshUser = async () => {
+    const { data } = await api.get<UserProfile>("/utilisateurs/me/");
+    setUser(data);
+  };
+
+  /* -------------------------
+     Init auth au démarrage
+  -------------------------- */
   useEffect(() => {
     let mounted = true;
 
@@ -36,12 +58,12 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       }
 
       try {
-        const profile = await getProfile();
+        const { data } = await api.get<UserProfile>("/utilisateurs/me/");
         if (mounted) {
-          setUser(normalizeUser(profile as any));
+          setUser(data);
         }
       } catch (err) {
-        console.error("Erreur lors du chargement du profil :", err);
+        console.error("Erreur chargement profil :", err);
         clearStoredTokens();
         if (mounted) setUser(null);
       } finally {
@@ -50,22 +72,28 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
 
     initAuth();
-
     return () => {
       mounted = false;
     };
   }, []);
 
+  /* -------------------------
+     Logout
+  -------------------------- */
   const logout = () => {
     clearStoredTokens();
     setUser(null);
   };
 
+  /* -------------------------
+     Valeur exposée
+  -------------------------- */
   const value: AuthContextType = {
     user,
-    isAuthenticated: !!user,
+    isAuthenticated: Boolean(user),
     loading,
     setUser,
+    refreshUser,
     logout,
   };
 

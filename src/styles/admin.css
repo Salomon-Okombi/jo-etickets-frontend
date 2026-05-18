@@ -142,6 +142,7 @@ body {
 .admin-nav__link:hover {
   background: rgba(0, 0, 0, 0.06);
   color: var(--admin-text);
+  
 }
 
 .admin-nav__link--active {
@@ -184,6 +185,7 @@ body {
   flex: 1;
   padding: 1.5rem 1.5rem;
   color: var(--admin-text);
+  text-decoration: none;
 }
 
 .admin-title {
@@ -313,6 +315,7 @@ body {
   font-weight: 650;
   letter-spacing: 0.05em;
   transition: transform 0.12s ease, border-color 0.12s ease;
+  text-decoration: none;
 }
 
 .admin-btn:hover {
@@ -420,6 +423,7 @@ body {
 }
 
 .admin-table-wrap {
+  margin-top : 30px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
@@ -718,4 +722,178 @@ body {
   gap: 0.6rem;
   margin-top: 0.5rem;
   flex-wrap: wrap;
+}
+
+/* ================================
+   EXTRA FIELDS (ADMIN USERS)
+================================ */
+
+.admin-extra-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: 260px;
+}
+
+.admin-extra-toggle {
+  background: transparent;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--admin-accent);
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.admin-extra-toggle:hover {
+  text-decoration: underline;
+}
+
+/* =========================================================
+   USERS TABLE — COMPACTAGE "AUTRES CHAMPS"
+   ========================================================= */
+
+/* Cellule "Autres champs" */
+.admin-table td:nth-child(7) {
+  max-width: 240px;
+}
+
+/* Conteneur des badges */
+.admin-table td:nth-child(7) > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+
+  /* limite visuelle */
+  max-height: 48px;          /* ≈ 2 lignes */
+  overflow: hidden;
+}
+
+/* Badges plus compacts */
+.admin-table td:nth-child(7) .admin-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Astuce visuelle : fade bas */
+.admin-table td:nth-child(7) > div {
+  position: relative;
+}
+
+.admin-table td:nth-child(7) > div::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.95)
+  );
+  pointer-events: none;
+}
+
+/* Hover : montre tout (desktop uniquement) */
+@media (hover: hover) {
+  .admin-table td:nth-child(7):hover > div {
+    max-height: 999px;
+    overflow: visible;
+  }
+
+  .admin-table td:nth-child(7):hover > div::after {
+    display: none;
+  }
+}
+
+
+/* =========================================================
+   ADMIN USERS – COLONNE ACTIONS (FIX AFFICHAGE)
+   ========================================================= */
+
+/* Cellule actions */
+.admin-table td.actions,
+.admin-table td:last-child {
+  width: 120px;
+  white-space: nowrap;
+}
+
+/* Conteneur des actions */
+.admin-td-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+/* Boutons actions compacts */
+.admin-td-right .admin-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  min-width: 88px;
+  justify-content: center;
+}
+
+/* Modifier = action principale */
+.admin-td-right .admin-btn:not(.admin-btn--danger) {
+  background: rgba(255, 179, 0, 0.15);
+  border-color: rgba(255, 179, 0, 0.45);
+}
+
+/* Supprimer = action critique */
+.admin-td-right .admin-btn--danger {
+  background: rgba(220, 38, 38, 0.10);
+  border-color: rgba(220, 38, 38, 0.45);
+}
+
+/* Hover plus discret */
+.admin-td-right .admin-btn:hover {
+  transform: none;
+  filter: brightness(1.05);
+}
+
+/* ================================
+   RESPONSIVE TABLETTE
+================================ */
+@media (max-width: 900px) {
+  .admin-td-right {
+    align-items: flex-start;
+  }
+
+  .admin-td-right .admin-btn {
+    width: 100%;
+  }
+}
+
+/* ================================
+   MOBILE
+================================ */
+@media (max-width: 600px) {
+  .admin-table td:last-child {
+    min-width: 100px;
+  }
+
+  .admin-td-right {
+    gap: 0.2rem;
+  }
+}
+
+/* =========================================================
+   CORRECTION TEXTAREA — BORDER RADIUS
+   ========================================================= */
+
+/* Textarea admin : radius adapté (moins arrondi) */
+.admin-input textarea,
+textarea.admin-input,
+.admin-textarea {
+  border-radius: var(--admin-radius); /* ex: 1rem */
+}
+
+/* Optionnel : coins encore plus discrets pour grandes zones */
+.admin-textarea--lg {
+  border-radius: 0.75rem;
 }

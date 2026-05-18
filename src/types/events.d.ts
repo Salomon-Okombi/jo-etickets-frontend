@@ -1,11 +1,11 @@
-
+/*
 //src/types/events.d.ts
 export type EventStatus = "BROUILLON" | "PUBLIE" | "ARCHIVE";
 
 /* =========================================================
    Modèle Event (API publique + admin)
 ========================================================= */
-
+/*
 export interface Event {
   id: number;
 
@@ -29,7 +29,7 @@ export interface Event {
 /* =========================================================
    Pagination générique DRF
 ========================================================= */
-
+/*
 export interface Paginated<T> {
   count: number;
   next: string | null;
@@ -40,7 +40,7 @@ export interface Paginated<T> {
 /* =========================================================
    Paramètres liste événements
 ========================================================= */
-
+/*
 export interface EventListParams {
   page?: number;
   page_size?: number;
@@ -51,7 +51,7 @@ export interface EventListParams {
 /* =========================================================
    Payloads admin
 ========================================================= */
-
+/*
 // Création (admin)
 export type EventCreatePayload = {
   nom_evenement: string;
@@ -65,4 +65,4 @@ export type EventCreatePayload = {
 };
 
 // Mise à jour partielle (admin)
-export type EventUpdatePayload = Partial<EventCreatePayload>;
+export type EventUpdatePayload = Partial<EventCreatePayload>;*/

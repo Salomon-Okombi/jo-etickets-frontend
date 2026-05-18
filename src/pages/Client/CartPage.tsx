@@ -1,8 +1,12 @@
-//src/pages/Client/CartPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Cart, CartLine } from "@/types/carts";
-import { getActiveCart, increaseLine, decreaseLine, removeCartLine } from "@/api/carts.api";
+import {
+  getActiveCart,
+  increaseLine,
+  decreaseLine,
+  removeCartLine,
+} from "@/api/carts.api";
 
 function isCanceledError(err: any) {
   return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
@@ -31,7 +35,7 @@ export default function CartPage() {
       setCart(c);
     } catch (e: any) {
       if (isCanceledError(e)) return;
-      setError("Impossible de charger le panier.");
+      setError("Impossible de charger votre panier.");
     } finally {
       setLoading(false);
     }
@@ -43,14 +47,17 @@ export default function CartPage() {
 
   const total = useMemo(() => {
     if (!cart) return 0;
-    if (cart.montant_total !== undefined) return Number(cart.montant_total) || 0;
-    return cart.lignes.reduce((acc, l) => acc + (Number(l.sous_total) || 0), 0);
+    if (cart.montant_total !== undefined)
+      return Number(cart.montant_total) || 0;
+    return cart.lignes.reduce(
+      (acc, l) => acc + (Number(l.sous_total) || 0),
+      0
+    );
   }, [cart]);
 
   async function onPlus(line: CartLine) {
     try {
       setBusyId(line.id);
-      setError(null);
       await increaseLine(line);
       await refresh();
     } catch {
@@ -64,11 +71,10 @@ export default function CartPage() {
     if (!cart) return;
     try {
       setBusyId(line.id);
-      setError(null);
       await decreaseLine(cart.id, line);
       await refresh();
     } catch {
-      setError("Impossible de diminuer la quantité.");
+      setError("Impossible de réduire la quantité.");
     } finally {
       setBusyId(null);
     }
@@ -76,69 +82,90 @@ export default function CartPage() {
 
   async function onRemove(line: CartLine) {
     if (!cart) return;
-    const ok = window.confirm("Supprimer cette ligne du panier ?");
+    const ok = window.confirm("Retirer cette offre du panier ?");
     if (!ok) return;
 
     try {
       setBusyId(line.id);
-      setError(null);
       await removeCartLine(cart.id, line.id);
       await refresh();
     } catch {
-      setError("Suppression impossible.");
+      setError("Impossible de supprimer cette ligne.");
     } finally {
       setBusyId(null);
     }
   }
 
-  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
+  if (loading) {
+    return <div className="cart-client__state">Chargement de votre panier…</div>;
+  }
 
   return (
-    <div style={{ padding: "1.5rem" }}>
-      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, marginBottom: "1rem" }}>Mon panier</h1>
+    <div className="cart-client">
+      <h1 className="cart-client__title">🛒 Mon panier</h1>
+      <p className="cart-client__subtitle">
+        Vérifiez votre sélection avant de finaliser la réservation
+      </p>
 
-      {error && (
-        <div style={{ marginBottom: "1rem", padding: "0.75rem 1rem", border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.08)", borderRadius: 12 }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="cart-client__error">{error}</div>}
 
       {!cart || cart.lignes.length === 0 ? (
-        <div>Votre panier est vide.</div>
+        <div className="cart-client__empty">
+          Votre panier est vide.  
+          Sélectionnez une épreuve pour réserver vos billets.
+        </div>
       ) : (
         <>
-          <div style={{ display: "grid", gap: "0.8rem" }}>
+          <div className="cart-client__items">
             {cart.lignes.map((l) => {
               const isBusy = busyId === l.id;
               return (
-                <div key={l.id} style={{ border: "1px solid rgba(15,23,42,0.12)", borderRadius: 14, padding: "1rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontWeight: 800 }}>Offre #{l.offre}</div>
-                      <div style={{ opacity: 0.8, marginTop: 4 }}>
-                        PU: <strong>{fmtMoney(l.prix_unitaire)}</strong> — Total ligne: <strong>{fmtMoney(l.sous_total)}</strong>
-                      </div>
+                <div key={l.id} className="cart-client__item">
+                  <div className="cart-client__info">
+                    <div className="cart-client__item-title">
+                      🎟 Offre #{l.offre}
                     </div>
+                    <div className="cart-client__item-meta">
+                      Prix unitaire :
+                      <strong> {fmtMoney(l.prix_unitaire)}</strong>
+                    </div>
+                    <div className="cart-client__item-meta">
+                      Sous‑total :
+                      <strong> {fmtMoney(l.sous_total)}</strong>
+                    </div>
+                  </div>
 
-                    <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
-                      <button disabled={isBusy} onClick={() => onMinus(l)}>−</button>
-                      <div style={{ minWidth: 24, textAlign: "center" }}>{l.quantite}</div>
-                      <button disabled={isBusy} onClick={() => onPlus(l)}>+</button>
-                      <button disabled={isBusy} onClick={() => onRemove(l)}>Supprimer</button>
-                    </div>
+                  <div className="cart-client__actions">
+                    <button disabled={isBusy} onClick={() => onMinus(l)}>
+                      −
+                    </button>
+                    <span className="cart-client__qty">{l.quantite}</span>
+                    <button disabled={isBusy} onClick={() => onPlus(l)}>
+                      +
+                    </button>
+                    <button
+                      className="danger"
+                      disabled={isBusy}
+                      onClick={() => onRemove(l)}
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div style={{ marginTop: "1rem", display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 900 }}>
-              Total panier : {fmtMoney(total)}
+          <div className="cart-client__summary">
+            <div className="cart-client__total">
+              Total de la réservation : {fmtMoney(total)}
             </div>
 
-            <button onClick={() => navigate("/mon-espace/checkout")}>
-              Passer au paiement
+            <button
+              className="cart-client__checkout"
+              onClick={() => navigate("/mon-espace/checkout")}
+            >
+               Continuer vers le paiement
             </button>
           </div>
         </>

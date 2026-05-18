@@ -1,14 +1,14 @@
-//features/cart/CartContext.tsx
-import  { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import type { CartItem } from "./cart.types";
 import { clearCartStorage, countItems, loadCart, saveCart } from "./cart.storage";
-import  api  from "@/api/axiosClient";
+import api from "@/api/axiosClient";
 import useAuth from "@/hooks/useAuth";
+import { priceToCents } from "./money";
 
 type CartContextValue = {
   items: CartItem[];
   count: number;
-  addItem: (item: CartItem) => void;
+  addItem: (item: { offre: number; quantite: number; nom_offre?: string; nb_personnes?: number; prix: number | string }) => void;
   removeItem: (offreId: number) => void;
   setQty: (offreId: number, qty: number) => void;
   clear: () => void;
@@ -25,25 +25,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => loadCart());
   const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    saveCart(items);
-  }, [items]);
+  useEffect(() => saveCart(items), [items]);
 
   const count = useMemo(() => countItems(items), [items]);
 
-  const addItem = useCallback((item: CartItem) => {
+  const addItem = useCallback((item: { offre: number; quantite: number; nom_offre?: string; nb_personnes?: number; prix: number | string }) => {
+    const prix_centimes = priceToCents(item.prix);
     setItems((prev) => {
       const idx = prev.findIndex((x) => x.offre === item.offre);
       if (idx === -1) {
-        return [...prev, { ...item, quantite: Math.max(1, item.quantite || 1) }];
+        return [...prev, { offre: item.offre, quantite: Math.max(1, item.quantite || 1), nom_offre: item.nom_offre, nb_personnes: item.nb_personnes, prix_centimes }];
       }
       const copy = [...prev];
-      copy[idx] = { ...copy[idx], quantite: copy[idx].quantite + (item.quantite || 1) };
       copy[idx] = {
         ...copy[idx],
+        quantite: copy[idx].quantite + (item.quantite || 1),
         nom_offre: item.nom_offre ?? copy[idx].nom_offre,
-        prix: item.prix ?? copy[idx].prix,
         nb_personnes: item.nb_personnes ?? copy[idx].nb_personnes,
+        prix_centimes: prix_centimes || copy[idx].prix_centimes,
       };
       return copy;
     });
@@ -68,9 +67,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     setSyncing(true);
     try {
-      for (const it of items) {
-        await api.post("/paniers/add/", { offre: it.offre, quantite: it.quantite });
-      }
+      await api.post("/paniers/sync/", { items: items.map((it) => ({ offre: it.offre, quantite: it.quantite })) });
       setItems([]);
       clearCartStorage();
     } finally {

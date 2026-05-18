@@ -1,12 +1,29 @@
-//users.api.ts
-import  api  from "@/api/axiosClient";
-import type { Paginated, User, UserListParams, UserRegisterPayload, UserUpdatePayload } from "@/types/users";
+// src/api/users.api.ts
+import api from "@/api/axiosClient";
+import type {
+  Paginated,
+  User,
+  UserListParams,
+  UserRegisterPayload,
+  UserUpdatePayload,
+} from "@/types/users";
 
-// si axiosClient.baseURL = http://localhost:8000/api
-const USERS_BASE = "/utilisateurs/";
+/**
+ * BACKEND:
+ * core/urls.py -> path("api/utilisateurs/", include("users.urls"))
+ * users/urls.py -> path("admin/", include(router.urls))
+ *
+ * ==> /api/utilisateurs/admin/users/
+ */
+const USERS_BASE = "/utilisateurs/admin/users/";
 
 function isPaginated<T>(data: any): data is Paginated<T> {
-  return data && typeof data === "object" && Array.isArray(data.results) && typeof data.count === "number";
+  return (
+    data &&
+    typeof data === "object" &&
+    Array.isArray(data.results) &&
+    typeof data.count === "number"
+  );
 }
 
 function joinUrl(base: string, part: string) {
@@ -15,8 +32,13 @@ function joinUrl(base: string, part: string) {
   return `${b}${p}`;
 }
 
-export async function listUsers(params: UserListParams = {}): Promise<Paginated<User>> {
-  const { data } = await api.get<Paginated<User> | User[]>(USERS_BASE, { params });
+export async function listUsers(
+  params: UserListParams = {}
+): Promise<Paginated<User>> {
+  const { data } = await api.get<Paginated<User> | User[]>(USERS_BASE, {
+    params,
+  });
+
   if (isPaginated<User>(data)) return data;
 
   const arr = Array.isArray(data) ? data : [];
@@ -24,24 +46,28 @@ export async function listUsers(params: UserListParams = {}): Promise<Paginated<
 }
 
 export async function getUser(id: number): Promise<User> {
-  const url = joinUrl(USERS_BASE, `${id}/`);
-  const { data } = await api.get<User>(url);
+  const { data } = await api.get<User>(joinUrl(USERS_BASE, `${id}/`));
   return data;
 }
 
-export async function createUser(payload: UserRegisterPayload): Promise<User> {
-  //  admin create = POST /api/utilisateurs/ (pas register)
+export async function createUser(
+  payload: UserRegisterPayload
+): Promise<User> {
   const { data } = await api.post<User>(USERS_BASE, payload);
   return data;
 }
 
-export async function updateUser(id: number, payload: UserUpdatePayload & { password?: string }): Promise<User> {
-  const url = joinUrl(USERS_BASE, `${id}/`);
-  const { data } = await api.patch<User>(url, payload);
+export async function updateUser(
+  id: number,
+  payload: UserUpdatePayload & { password?: string }
+): Promise<User> {
+  const { data } = await api.patch<User>(
+    joinUrl(USERS_BASE, `${id}/`),
+    payload
+  );
   return data;
 }
 
 export async function deleteUser(id: number): Promise<void> {
-  const url = joinUrl(USERS_BASE, `${id}/`);
-  await api.delete(url);
+  await api.delete(joinUrl(USERS_BASE, `${id}/`));
 }

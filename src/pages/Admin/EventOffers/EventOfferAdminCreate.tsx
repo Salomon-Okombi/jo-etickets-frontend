@@ -1,10 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createOffer } from "@/api/offers.api";
-import { listAdminEvents, type Event } from "@/api/events.api";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import api from "@/api/axiosClient";
 import { listOfferCategoriesAdmin, type OfferCategory } from "@/api/offerCategories.api";
-import type { OfferCreatePayload, OfferStatus } from "@/types/offers";
+import type { OfferStatus } from "@/types/offers";
 import "@/styles/admin.css";
+
+type AdminEvent = {
+  id: number;
+  nom_evenement: string;
+  date_debut: string;
+  date_fin: string;
+  statut: "BROUILLON" | "PUBLIE" | "ARCHIVE";
+  prix_base?: string | number;
+};
+
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError" || err?.name === "AbortError";
+}
+
+function extractApiError(err: any): string | null {
+  const data = err?.response?.data;
+  if (!data) return null;
+
+  if (typeof data === "string") return data;
+  if (Array.isArray(data)) return data.join(" ");
+
+  if (typeof data === "object") {
+    const nfe = (data as any).non_field_errors;
+    if (Array.isArray(nfe) && nfe.length) return nfe.join(" ");
+
+    for (const key of Object.keys(data)) {
+      const val = (data as any)[key];
+      if (Array.isArray(val) && val.length) return `${key} : ${val.join(" ")}`;
+      if (typeof val === "string") return `${key} : ${val}`;
+    }
+  }
+
+  return null;
+}
 
 function toIsoFromLocal(value: string): string | null {
   if (!value) return null;
@@ -26,23 +59,37 @@ function addDays(date: Date, days: number) {
   return d;
 }
 
-export default function OfferAdminCreate() {
+function fmtDateTime(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("fr-FR");
+}
+
+export default function EventOfferAdminCreate() {
   const navigate = useNavigate();
 
-  const [events, setEvents] = useState<Event[]>([]);
+  // support : route param /admin/evenements/:id/offres/nouvelle
+  const { id } = useParams<{ id: string }>();
+
+  // support : query param /admin/offres/nouvelle?evenement=12
+  const [searchParams] = useSearchParams();
+  const eventIdFromQuery = Number(searchParams.get("evenement"));
+
+  const eventId = Number.isFinite(Number(id)) && Number(id) > 0 ? Number(id) : eventIdFromQuery;
+
+  const [eventInfo, setEventInfo] = useState<AdminEvent | null>(null);
   const [cats, setCats] = useState<OfferCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [evenement, setEvenement] = useState<number | "">("");
   const [categorie, setCategorie] = useState<number | "">("");
 
   const [nomOffre, setNomOffre] = useState("");
   const [description, setDescription] = useState("");
 
-  // Quota en billets (places)
   const [quotaTotal, setQuotaTotal] = useState<number | "">(100);
   const [quotaRestant, setQuotaRestant] = useState<number | "">(100);
 
@@ -52,24 +99,11 @@ export default function OfferAdminCreate() {
 
   const [statut, setStatut] = useState<OfferStatus>("ACTIVE");
 
-  const selectedEvent = useMemo(
-    () => events.find((e) => e.id === evenement),
-    [events, evenement]
-  );
-
   const selectedCat = useMemo(
     () => cats.find((c) => c.id === categorie),
     [cats, categorie]
   );
 
-  // Suggestion de nom automatique
-  useEffect(() => {
-    if (nomOffre.trim()) return;
-    if (!selectedEvent || !selectedCat) return;
-    setNomOffre(`${selectedCat.code} - ${selectedEvent.nom_evenement}`);
-  }, [selectedEvent, selectedCat, nomOffre]);
-
-  // Aide UI : packs disponibles estimés (quotaRestant // nb_personnes)
   const packsDispoPreview = useMemo(() => {
     const nb = selectedCat?.nb_personnes ?? 1;
     const q = typeof quotaRestant === "number" ? quotaRestant : Number(quotaRestant);
@@ -77,48 +111,77 @@ export default function OfferAdminCreate() {
     return Math.floor(q / Math.max(1, nb));
   }, [quotaRestant, selectedCat?.nb_personnes]);
 
+  // Charger event + catégories
   useEffect(() => {
+    if (!Number.isFinite(eventId) || eventId <= 0) {
+      setError("Identifiant d’événement manquant ou invalide.");
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
     async function load() {
-      setLoading(true);
-      setError(null);
       try {
-        const [eventsRes, categoriesRes] = await Promise.all([
-          listAdminEvents({ page: 1, page_size: 200 } as any),
+        setLoading(true);
+        setError(null);
+
+        const [evRes, categories] = await Promise.all([
+          api.get<AdminEvent>(`/evenements/admin/${eventId}/`, { signal: controller.signal }),
           listOfferCategoriesAdmin(),
         ]);
 
-        setEvents(eventsRes.results ?? []);
-        setCats(categoriesRes);
-      } catch {
-        setError("Impossible de charger les événements ou les catégories.");
+        if (controller.signal.aborted) return;
+
+        setEventInfo(evRes.data);
+        setCats(categories);
+      } catch (err: any) {
+        if (isCanceledError(err) || controller.signal.aborted) return;
+
+        const status = err?.response?.status;
+        if (status === 401) setError("Session expirée. Reconnecte-toi.");
+        else if (status === 403) setError("Accès refusé (403).");
+        else if (status === 404) setError("Événement introuvable.");
+        else setError("Impossible de charger l’événement ou les catégories.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
+
     load();
-  }, []);
+    return () => controller.abort();
+  }, [eventId]);
 
-  const canSubmit = useMemo(() => {
-    if (evenement === "" || categorie === "") return false;
-    if (!nomOffre.trim()) return false;
+  // Nom par défaut (si vide)
+  useEffect(() => {
+    if (nomOffre.trim()) return;
+    if (!eventInfo || !selectedCat) return;
+    setNomOffre(`${selectedCat.code} - ${eventInfo.nom_evenement}`);
+  }, [eventInfo, selectedCat, nomOffre]);
 
-    if (quotaTotal === "" || quotaRestant === "") return false;
-    if (Number(quotaTotal) < 0 || Number(quotaRestant) < 0) return false;
-    if (Number(quotaRestant) > Number(quotaTotal)) return false;
+  function validate(): string | null {
+    if (!Number.isFinite(eventId) || eventId <= 0) return "Événement invalide.";
+    if (categorie === "") return "La catégorie est obligatoire.";
+    if (!nomOffre.trim()) return "Le nom est obligatoire.";
+
+    if (quotaTotal === "" || quotaRestant === "") return "Les quotas sont obligatoires.";
+    if (Number(quotaTotal) < 0 || Number(quotaRestant) < 0) return "Les quotas doivent être positifs.";
+    if (Number(quotaRestant) > Number(quotaTotal)) return "Le quota restant ne peut pas dépasser le quota total.";
 
     const startIso = toIsoFromLocal(dateDebutVente);
     const endIso = toIsoFromLocal(dateFinVente);
-    if (!startIso || !endIso) return false;
-    if (new Date(startIso) >= new Date(endIso)) return false;
+    if (!startIso || !endIso) return "Dates de vente invalides.";
+    if (new Date(startIso) >= new Date(endIso)) return "La fin de vente doit être postérieure au début.";
 
-    return true;
-  }, [evenement, categorie, nomOffre, quotaTotal, quotaRestant, dateDebutVente, dateFinVente]);
+    return null;
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!canSubmit) {
-      setError("Vérifie les champs obligatoires (événement, catégorie, nom, quotas, dates).");
+    const v = validate();
+    if (v) {
+      setError(v);
       return;
     }
 
@@ -126,11 +189,8 @@ export default function OfferAdminCreate() {
     setError(null);
 
     try {
-      const startIso = toIsoFromLocal(dateDebutVente) as string;
-      const endIso = toIsoFromLocal(dateFinVente) as string;
-
-      const payload: OfferCreatePayload = {
-        evenement: Number(evenement),
+      const payload = {
+        evenement: eventId,
         categorie: Number(categorie),
         nom_offre: nomOffre.trim(),
         description: description.trim() ? description.trim() : null,
@@ -138,35 +198,40 @@ export default function OfferAdminCreate() {
         quota_billets_total: Number(quotaTotal),
         quota_billets_restant: Number(quotaRestant),
 
-        date_debut_vente: startIso,
-        date_fin_vente: endIso,
+        date_debut_vente: toIsoFromLocal(dateDebutVente) as string,
+        date_fin_vente: toIsoFromLocal(dateFinVente) as string,
         statut,
       };
 
-      await createOffer(payload);
-      navigate("/admin/offres");
+      // 1) tentative endpoint dédié
+      try {
+        await api.post("/offres/event-offers/", payload);
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 404) {
+          // 2) fallback endpoint standard offres
+          await api.post("/offres/", payload);
+        } else {
+          throw err;
+        }
+      }
+
+      navigate(eventInfo ? `/admin/evenements/${eventId}/offres` : "/admin/offres");
     } catch (err: any) {
       const status = err?.response?.status;
-      const data = err?.response?.data;
+      const apiMsg = extractApiError(err);
 
       if (status === 400) {
-        if (data && typeof data === "object") {
-          const msg = JSON.stringify(data);
-          if (msg.includes("uniq_evenement_categorie") || msg.toLowerCase().includes("unique")) {
-            setError("Cette offre existe déjà pour cet événement et cette catégorie.");
-          } else {
-            setError("Données invalides (400). Vérifie quotas et dates de vente.");
-          }
+        const msg = apiMsg ?? "Données invalides (400).";
+        // cas fréquent : unique (evenement,categorie)
+        if ((apiMsg ?? "").toLowerCase().includes("unique") || (apiMsg ?? "").includes("uniq_evenement_categorie")) {
+          setError("Cette offre existe déjà pour cet événement et cette catégorie.");
         } else {
-          setError("Données invalides (400).");
+          setError(msg);
         }
-      } else if (status === 401) {
-        setError("Session expirée. Reconnecte-toi.");
-      } else if (status === 403) {
-        setError("Accès refusé (403).");
-      } else {
-        setError("Erreur lors de la création.");
-      }
+      } else if (status === 401) setError("Session expirée. Reconnecte-toi.");
+      else if (status === 403) setError("Accès refusé (403).");
+      else setError(apiMsg ?? "Erreur lors de la création.");
     } finally {
       setSaving(false);
     }
@@ -175,9 +240,16 @@ export default function OfferAdminCreate() {
   return (
     <div className="admin-page">
       <div style={{ marginBottom: "1.2rem" }}>
-        <div className="admin-title">Créer une offre</div>
+        <div className="admin-title">Ajouter une offre à un événement</div>
         <div className="admin-subtitle">
-          Une offre est liée à un événement et une catégorie. Le prix est calculé automatiquement.
+          {eventInfo ? (
+            <>
+              <strong>#{eventInfo.id}</strong> — {eventInfo.nom_evenement} —{" "}
+              {fmtDateTime(eventInfo.date_debut)} → {fmtDateTime(eventInfo.date_fin)}
+            </>
+          ) : (
+            "Création d’une offre spécifique à un événement."
+          )}
         </div>
       </div>
 
@@ -191,22 +263,8 @@ export default function OfferAdminCreate() {
         <form onSubmit={onSubmit} className="admin-form" style={{ maxWidth: 820 }}>
           <div className="admin-grid-2">
             <div>
-              <div className="admin-text-muted">Événement *</div>
-              <select
-                className="admin-select"
-                value={evenement}
-                onChange={(e) => setEvenement(e.target.value ? Number(e.target.value) : "")}
-                disabled={loading}
-              >
-                <option value="" disabled>
-                  {loading ? "Chargement…" : "Sélectionner un événement"}
-                </option>
-                {events.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    #{ev.id} — {ev.nom_evenement}
-                  </option>
-                ))}
-              </select>
+              <div className="admin-text-muted">Événement</div>
+              <input className="admin-input" value={eventInfo ? `${eventInfo.id} — ${eventInfo.nom_evenement}` : String(eventId)} disabled />
             </div>
 
             <div>
@@ -250,7 +308,6 @@ export default function OfferAdminCreate() {
                 onChange={(e) => setQuotaTotal(e.target.value === "" ? "" : Number(e.target.value))}
               />
             </div>
-
             <div>
               <div className="admin-text-muted">Quota billets restant *</div>
               <input
@@ -280,7 +337,6 @@ export default function OfferAdminCreate() {
                 onChange={(e) => setDateDebutVente(e.target.value)}
               />
             </div>
-
             <div>
               <div className="admin-text-muted">Fin de vente *</div>
               <input
@@ -303,11 +359,14 @@ export default function OfferAdminCreate() {
           </div>
 
           <div className="admin-actions" style={{ justifyContent: "flex-end" }}>
-            <button type="button" className="admin-btn admin-btn--ghost" onClick={() => navigate(-1)}>
+            <Link
+              to={eventInfo ? `/admin/evenements/${eventId}/offres` : "/admin/offres"}
+              className="admin-btn admin-btn--ghost"
+            >
               Annuler
-            </button>
+            </Link>
 
-            <button type="submit" className="admin-btn" disabled={!canSubmit || saving}>
+            <button type="submit" className="admin-btn" disabled={saving || loading}>
               {saving ? "Création…" : "Créer"}
             </button>
           </div>

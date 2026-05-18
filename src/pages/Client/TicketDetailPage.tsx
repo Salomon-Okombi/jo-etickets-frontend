@@ -1,8 +1,8 @@
-//src/pages/Client/TicketDetailPage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { EBillet } from "@/types/billets";
 import { getBillet, downloadBilletPdf } from "@/api/billets.api";
+
 
 function isCanceledError(err: any) {
   return err?.code === "ERR_CANCELED" || err?.name === "CanceledError";
@@ -37,11 +37,10 @@ export default function TicketDetailPage() {
         setLoading(true);
         setError(null);
         const data = await getBillet(billetId);
-        if (controller.signal.aborted) return;
-        setBillet(data);
+        if (!controller.signal.aborted) setBillet(data);
       } catch (e: any) {
         if (isCanceledError(e) || controller.signal.aborted) return;
-        setError("Impossible de charger le billet.");
+        setError("Impossible de charger ce billet.");
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -53,7 +52,6 @@ export default function TicketDetailPage() {
 
   async function onDownloadPdf() {
     if (!billet) return;
-
     setDownloading(true);
     setError(null);
 
@@ -61,57 +59,60 @@ export default function TicketDetailPage() {
       const blob = await downloadBilletPdf(billet.id);
       triggerDownload(blob, `${billet.numero_billet}.pdf`);
     } catch {
-      setError("Téléchargement du PDF impossible.");
+      setError("Téléchargement du billet impossible.");
     } finally {
       setDownloading(false);
     }
   }
 
-  if (loading) return <div style={{ padding: "2rem" }}>Chargement…</div>;
-  if (!billet) return <div style={{ padding: "2rem" }}>{error ?? "Billet introuvable."}</div>;
+  if (loading) return <div className="ticket-page__state">Chargement du billet…</div>;
+  if (!billet) return <div className="ticket-page__state">{error ?? "Billet introuvable."}</div>;
 
   return (
-    <div style={{ padding: "1.5rem" }}>
-      <button onClick={() => navigate(-1)} style={{ marginBottom: "1rem" }}>
-        ← Retour
+    <div className="ticket-page">
+      <button className="ticket-back" onClick={() => navigate(-1)}>
+        ← Retour à mes billets
       </button>
 
-      <h1 style={{ fontSize: "1.6rem", fontWeight: 800 }}>{billet.numero_billet}</h1>
-      <div style={{ marginTop: 6, opacity: 0.85 }}>{billet.offre_nom}</div>
+      <h1 className="ticket-title">🎟️ {billet.numero_billet}</h1>
+      <p className="ticket-subtitle">{billet.offre_nom}</p>
 
-      {error && (
-        <div style={{ marginTop: "1rem", padding: "0.75rem 1rem", border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.08)", borderRadius: 12 }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="ticket-error">{error}</div>}
 
-      <div style={{ marginTop: "1rem", display: "grid", gridTemplateColumns: "1fr 320px", gap: "1rem" }}>
-        <div>
-          <div style={{ opacity: 0.7 }}>Statut</div>
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>{billet.statut}</div>
-
-          <div style={{ opacity: 0.7 }}>Acheté le</div>
-          <div style={{ marginBottom: 10 }}>{new Date(billet.date_achat).toLocaleString("fr-FR")}</div>
-
-          <div style={{ opacity: 0.7 }}>Utilisé le</div>
-          <div style={{ marginBottom: 10 }}>
-            {billet.date_utilisation ? new Date(billet.date_utilisation).toLocaleString("fr-FR") : "—"}
+      <div className="ticket-grid">
+        <div className="ticket-infos">
+          <div className="ticket-info">
+            <span>Statut</span>
+            <strong>{billet.statut}</strong>
           </div>
 
-          <button onClick={onDownloadPdf} disabled={downloading} style={{ marginTop: 8 }}>
-            {downloading ? "Téléchargement…" : "Télécharger le PDF"}
+          <div className="ticket-info">
+            <span>Acheté le</span>
+            <strong>{new Date(billet.date_achat).toLocaleString("fr-FR")}</strong>
+          </div>
+
+          <div className="ticket-info">
+            <span>Utilisé le</span>
+            <strong>
+              {billet.date_utilisation
+                ? new Date(billet.date_utilisation).toLocaleString("fr-FR")
+                : "—"}
+            </strong>
+          </div>
+
+          <button className="ticket-download" onClick={onDownloadPdf} disabled={downloading}>
+            {downloading ? "Téléchargement…" : "📄 Télécharger le billet PDF"}
           </button>
         </div>
 
-        <div>
+        <div className="ticket-qr">
           {billet.qr_code ? (
             <img
               src={`data:image/png;base64,${billet.qr_code}`}
-              alt="QR code billet"
-              style={{ width: "100%", borderRadius: 14, border: "1px solid rgba(15,23,42,0.12)" }}
+              alt="QR code du billet"
             />
           ) : (
-            <div style={{ opacity: 0.7 }}>QR indisponible</div>
+            <div className="ticket-qr--empty">QR code indisponible</div>
           )}
         </div>
       </div>

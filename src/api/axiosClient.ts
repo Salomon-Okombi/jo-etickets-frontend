@@ -1,12 +1,8 @@
-//axiosClient.ts
-import axios, {
-  AxiosError,
-  AxiosInstance,
-  InternalAxiosRequestConfig,
-} from "axios";
+// src/api/axiosClient.ts
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "axios";
 
 /* ===========================================================
-   AXIOS CLIENT — VERSION DÉFINITIVE
+   CONFIG
 =========================================================== */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -54,31 +50,15 @@ function clearStoredTokens() {
 =========================================================== */
 
 const api: AxiosInstance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: BASE_URL, // ex: http://127.0.0.1:8000/api
   timeout: 20000,
   headers: {
-    "Content-Type": "application/json",
     Accept: "application/json",
   },
 });
 
 /* ===========================================================
-    CORRECTION FINALE ICI
-=========================================================== */
-
-function isPublicEndpoint(url?: string): boolean {
-  if (!url) return false;
-
-  return (
-    url.startsWith("/evenements") ||
-    url.startsWith("/offres") ||
-    url.startsWith("/api/evenements") ||
-    url.startsWith("/api/offres")
-  );
-}
-
-/* ===========================================================
-   REFRESH TOKEN
+   REFRESH TOKEN (ANTI BOUCLE)
 =========================================================== */
 
 let isRefreshing = false;
@@ -91,29 +71,33 @@ function notifyQueue(newToken: string) {
 
 async function refreshAccessToken(): Promise<string> {
   const tokens = getStoredTokens();
-  if (!tokens?.refresh) throw new Error("No refresh token");
+  if (!tokens?.refresh) {
+    throw new Error("No refresh token");
+  }
 
-  const response = await axios.post<{ access: string }>(
-    `${BASE_URL}${REFRESH_ENDPOINT}`,
-    { refresh: tokens.refresh }
-  );
+  // Important: on utilise la même instance axios,
+  // mais ça ne pose pas de problème car on contrôle la logique 401 ci-dessous.
+  const response = await api.post<{ access: string }>(REFRESH_ENDPOINT, {
+    refresh: tokens.refresh,
+  });
 
-  setStoredTokens({ access: response.data.access, refresh: tokens.refresh });
+  setStoredTokens({
+    access: response.data.access,
+    refresh: tokens.refresh,
+  });
+
   return response.data.access;
 }
 
 /* ===========================================================
    REQUEST INTERCEPTOR
+   - On attache le JWT si on en a un
+   - On ne le retire jamais pour les endpoints publics (ça évite de casser l’admin)
 =========================================================== */
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const tokens = getStoredTokens();
-
-    if (isPublicEndpoint(config.url)) {
-      delete config.headers.Authorization;
-      return config;
-    }
 
     if (tokens?.access) {
       config.headers.Authorization = `Bearer ${tokens.access}`;
@@ -128,21 +112,39 @@ api.interceptors.request.use(
 
 /* ===========================================================
    RESPONSE INTERCEPTOR — JWT REFRESH
+   - On refresh uniquement si :
+     - 401
+     - pas déjà retry
+     - on a un refresh token
+     - ce n’est pas l’endpoint de refresh lui-même
 =========================================================== */
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as
-      | (InternalAxiosRequestConfig & { _retry?: boolean })
-      | undefined;
+    const originalRequest =
+      error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
-    if (
-      !originalRequest ||
-      error.response?.status !== 401 ||
-      originalRequest._retry ||
-      isPublicEndpoint(originalRequest.url)
-    ) {
+    // Si on n'a pas de requête originale ou pas de 401 → on sort
+    if (!originalRequest || error.response?.status !== 401) {
+      return Promise.reject(error);
+    }
+
+    // Ne pas tenter de refresh sur l’endpoint de refresh
+    if (originalRequest.url?.startsWith(REFRESH_ENDPOINT)) {
+      clearStoredTokens();
+      return Promise.reject(error);
+    }
+
+    // Si déjà retry → stop
+    if (originalRequest._retry) {
+      clearStoredTokens();
+      return Promise.reject(error);
+    }
+
+    const tokens = getStoredTokens();
+    if (!tokens?.refresh) {
+      clearStoredTokens();
       return Promise.reject(error);
     }
 

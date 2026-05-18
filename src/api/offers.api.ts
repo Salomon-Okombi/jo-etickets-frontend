@@ -1,5 +1,5 @@
-//offers/api.ts
-import api from "./axiosClient";
+// src/api/offers.api.ts
+import api from "@/api/axiosClient";
 import type {
   Offer,
   Paginated,
@@ -15,7 +15,7 @@ import type {
 export async function listOffers(
   params?: OfferListParams
 ): Promise<Paginated<Offer>> {
-  const { data } = await api.get("/offres/", { params });
+  const { data } = await api.get<Paginated<Offer>>("/offres/", { params });
   return data;
 }
 
@@ -28,9 +28,7 @@ export async function getOffer(id: number): Promise<Offer> {
    CREATE / UPDATE / DELETE
 -------------------------------- */
 
-export async function createOffer(
-  payload: OfferCreatePayload
-): Promise<Offer> {
+export async function createOffer(payload: OfferCreatePayload): Promise<Offer> {
   const { data } = await api.post<Offer>("/offres/", payload);
   return data;
 }
@@ -39,10 +37,7 @@ export async function updateOffer(
   id: number,
   payload: OfferUpdatePayload
 ): Promise<Offer> {
-  const { data } = await api.patch<Offer>(
-    `/offres/${id}/`,
-    payload
-  );
+  const { data } = await api.patch<Offer>(`/offres/${id}/`, payload);
   return data;
 }
 

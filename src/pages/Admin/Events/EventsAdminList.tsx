@@ -1,23 +1,21 @@
-//src/pages/Admin/Events/EventsAdminList.tsx
+// src/pages/Admin/Events/EventsAdminList.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import  api  from "@/api/axiosClient";
+import api from "@/api/axiosClient";
 import useToast from "@/hooks/useToast";
 import "@/styles/admin.css";
 
-type Event = {
+type EventStatus = "BROUILLON" | "PUBLIE" | "ARCHIVE";
+
+type AdminEvent = {
   id: number;
-  titre?: string;
-  nom?: string; // fallback si le backend utilise "nom"
+  nom_evenement: string;
   discipline?: string;
-  date?: string; // ISO
-  date_evenement?: string; // fallback
-  lieu?: string;
-  location?: string; // fallback
-  capacite?: number;
-  capacity?: number; // fallback
-  actif?: boolean;
-  is_active?: boolean; // fallback
+  lieu: string;
+  date_debut: string;
+  date_fin: string;
+  prix_base: string;
+  statut: EventStatus;
 };
 
 type Paginated<T> = {
@@ -27,13 +25,13 @@ type Paginated<T> = {
   results: T[];
 };
 
-function pickTitle(e: Event) {
-  return e.titre ?? e.nom ?? `Événement #${e.id}`;
+function isCanceledError(err: any) {
+  return err?.code === "ERR_CANCELED" || err?.name === "CanceledError" || err?.name === "AbortError";
 }
 
-function pickDate(e: Event) {
-  return e.date ?? e.date_evenement ?? "";
-}
+/* ===============================
+   HELPERS
+=============================== */
 
 function formatDate(value?: string) {
   if (!value) return "—";
@@ -44,32 +42,25 @@ function formatDate(value?: string) {
   }
 }
 
-function pickLieu(e: Event) {
-  return e.lieu ?? e.location ?? "—";
+function statutBadgeClass(statut: EventStatus) {
+  switch (statut) {
+    case "PUBLIE":
+      return "admin-badge admin-badge--ok";
+    case "ARCHIVE":
+      return "admin-badge admin-badge--danger";
+    default:
+      return "admin-badge admin-badge--muted";
+  }
 }
 
-function pickCapacite(e: Event) {
-  const c = e.capacite ?? e.capacity;
-  if (c === undefined || c === null) return "—";
-  return c.toLocaleString("fr-FR");
-}
-
-function activeBadgeClass(active?: boolean) {
-  if (active === true) return "admin-badge admin-badge--ok";
-  if (active === false) return "admin-badge admin-badge--danger";
-  return "admin-badge admin-badge--muted";
-}
-
-function activeLabel(active?: boolean) {
-  if (active === true) return "ACTIF";
-  if (active === false) return "INACTIF";
-  return "—";
-}
+/* ===============================
+   COMPONENT
+=============================== */
 
 export default function EventsAdminList() {
   const { showToast } = useToast();
 
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<AdminEvent[]>([]);
   const [count, setCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
@@ -104,20 +95,21 @@ export default function EventsAdminList() {
         };
         if (search) params.search = search;
 
-        //  Endpoint attendu (à adapter si besoin)
-        const { data } = await api.get<Paginated<Event>>("/evenements/", {
+        const { data } = await api.get<Paginated<AdminEvent>>("/evenements/admin/", {
           params,
           signal: controller.signal,
         });
 
+        if (controller.signal.aborted) return;
+
         setEvents(data.results);
         setCount(data.count);
       } catch (err: any) {
-        if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") return;
+        if (isCanceledError(err) || controller.signal.aborted) return;
         console.error("Admin Events: fetch error =", err);
         setError("Chargement des événements impossible.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
@@ -136,60 +128,51 @@ export default function EventsAdminList() {
     if (!ok) return;
 
     try {
-      //  Endpoint attendu (à adapter si besoin)
-      await api.delete(`/evenements/${id}/`);
-      showToast("Événement supprimé ", "success");
+      await api.delete(`/evenements/admin/${id}/`);
+      showToast("Événement supprimé", "success");
 
-      // Refresh : si la page devient vide après suppression, on recule d'une page si possible
       const nextCount = Math.max(0, count - 1);
       const nextTotalPages = Math.max(1, Math.ceil(nextCount / pageSize));
-      if (page > nextTotalPages) setPage(nextTotalPages);
-      else {
-        // refetch "soft"
+
+      // si la page devient vide, on recule d’une page si possible
+      if (page > nextTotalPages) {
+        setPage(nextTotalPages);
+      } else {
         setEvents((prev) => prev.filter((e) => e.id !== id));
         setCount(nextCount);
       }
     } catch (err) {
       console.error("Admin Events: delete error =", err);
-      showToast("Suppression impossible (vérifie les droits / endpoint).", "error");
+      showToast("Suppression impossible.", "error");
     }
   }
 
   return (
     <div className="admin-page">
-      {/* Header page */}
       <div style={{ marginBottom: "1.2rem" }}>
         <div className="admin-title">Événements</div>
         <div className="admin-subtitle">
-          Gestion des épreuves (création, modification, activation).{" "}
+          Gestion des épreuves{" "}
           <span className="admin-text-muted" style={{ fontSize: "0.85rem" }}>
-            {count.toLocaleString("fr-FR")} événement(s)
+            ({count.toLocaleString("fr-FR")})
           </span>
         </div>
       </div>
 
-      {error ? (
+      {error && (
         <div className="admin-alert" role="alert">
           {error}
         </div>
-      ) : null}
+      )}
 
-      {/* Table */}
       <div className="admin-table-wrap" style={{ marginTop: "1rem" }}>
         <div className="admin-table-head">
-          <div>
-            <div className="admin-table-title">Liste des événements</div>
-            <div className="admin-text-muted" style={{ fontSize: "0.85rem", marginTop: "0.15rem" }}>
-              Recherche + pagination
-            </div>
-          </div>
-
           <div className="admin-table-tools">
             <input
               className="admin-input"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Recherche (titre, discipline, lieu...)"
+              placeholder="Recherche (nom, discipline, lieu...)"
             />
 
             <select
@@ -221,55 +204,51 @@ export default function EventsAdminList() {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Titre</th>
+                  <th>Nom</th>
                   <th>Discipline</th>
-                  <th>Date</th>
+                  <th>Début</th>
+                  <th>Fin</th>
                   <th>Lieu</th>
-                  <th className="admin-td-center">Capacité</th>
-                  <th className="admin-td-center">Statut</th>
+                  <th>Statut</th>
                   <th className="admin-td-right">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {events.map((e) => {
-                  const active = e.actif ?? e.is_active;
-                  return (
-                    <tr key={e.id}>
-                      <td>{e.id}</td>
-                      <td>{pickTitle(e)}</td>
-                      <td>{e.discipline ?? "—"}</td>
-                      <td>{formatDate(pickDate(e))}</td>
-                      <td>{pickLieu(e)}</td>
-                      <td className="admin-td-center">{pickCapacite(e)}</td>
-                      <td className="admin-td-center">
-                        <span className={activeBadgeClass(active)}>{activeLabel(active)}</span>
-                      </td>
-                      <td className="admin-td-right">
-                        <Link
-                          className="admin-btn admin-btn--sm"
-                          to={`/admin/evenements/${e.id}`}
-                          style={{ marginRight: "0.4rem" }}
-                        >
-                          Modifier
-                        </Link>
-
-                        <button className="admin-btn admin-btn--sm" onClick={() => handleDelete(e.id)}>
-                          Supprimer
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {events.map((e) => (
+                  <tr key={e.id}>
+                    <td>{e.id}</td>
+                    <td>{e.nom_evenement}</td>
+                    <td>{e.discipline ?? "—"}</td>
+                    <td>{formatDate(e.date_debut)}</td>
+                    <td>{formatDate(e.date_fin)}</td>
+                    <td>{e.lieu}</td>
+                    <td className="admin-td-center">
+                      <span className={statutBadgeClass(e.statut)}>{e.statut}</span>
+                    </td>
+                    <td className="admin-td-right">
+                      <Link
+                        className="admin-btn admin-btn--sm"
+                        to={`/admin/evenements/${e.id}`}
+                        style={{ marginRight: "0.4rem" }}
+                      >
+                        Modifier
+                      </Link>
+                      <button className="admin-btn admin-btn--sm" onClick={() => handleDelete(e.id)}>
+                        Supprimer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
 
             <div className="admin-table-footer">
               <div className="admin-table-footer__text">
-                {count.toLocaleString("fr-FR")} événement(s) — page {page} / {totalPages}
+                Page {page} / {totalPages}
               </div>
 
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div className="admin-table-footer__actions">
                 <button
                   className="admin-btn admin-btn--sm"
                   disabled={page <= 1}
