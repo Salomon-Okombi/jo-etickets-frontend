@@ -24,7 +24,7 @@ type OfferApi = {
   nom_offre?: string;
   prix_calcule: string;
   multiplicateur: number;
-  stock_disponible: number;
+  quota_billets_restant: number; // ✅ CORRECT
   statut: string;
   est_disponible: boolean;
 };
@@ -90,7 +90,6 @@ export default function EventDetailPage() {
   const [cats, setCats] = useState<OfferCategory[]>([]);
   const [offers, setOffers] = useState<OfferApi[]>([]);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -136,7 +135,7 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (!reserveRequested || !offersRef.current || loading) return;
-    offersRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    offersRef.current.scrollIntoView({ behavior: "smooth" });
   }, [reserveRequested, loading]);
 
   const offersByCategorieId = useMemo(() => {
@@ -150,17 +149,13 @@ export default function EventDetailPage() {
     [cats]
   );
 
-  function handleReserveClick() {
-    if (offersRef.current) {
-      offersRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
-
   function handleAddOffer(offer: OfferApi, category: OfferCategory) {
     addItem({
       offre: offer.id,
       quantite: 1,
-      nom_offre: offer.nom_offre ?? `${category.code} - ${event?.nom_evenement ?? ""}`,
+      nom_offre:
+        offer.nom_offre ??
+        `${category.code} - ${event?.nom_evenement ?? ""}`,
       prix: offer.prix_calcule,
       nb_personnes: category.nb_personnes,
     });
@@ -168,17 +163,8 @@ export default function EventDetailPage() {
     navigate("/panier");
   }
 
-  if (loading) {
-    return <div className="event-detail__state">Chargement…</div>;
-  }
-
-  if (!event) {
-    return (
-      <div className="event-detail__state event-detail__state--error">
-        {error ?? "Événement introuvable."}
-      </div>
-    );
-  }
+  if (loading) return <div>Chargement…</div>;
+  if (!event) return <div>{error}</div>;
 
   const imageSrc =
     event.image_url && event.image_url.trim() !== ""
@@ -188,93 +174,47 @@ export default function EventDetailPage() {
   const actif = isEventActive(event);
 
   return (
-    <div className="event-detail">
-      <section className="event-detail__hero">
-        <div className="event-detail__hero-inner">
-          <nav className="event-detail__breadcrumbs">
-            <Link to="/evenements">Épreuves</Link> / <span>{event.nom_evenement}</span>
-          </nav>
+    <div>
+      <h1>{event.nom_evenement}</h1>
 
-          <h1 className="event-detail__title">{event.nom_evenement}</h1>
+      <p>
+        {formatDateTime(event.date_debut)} → {formatDateTime(event.date_fin)}
+      </p>
 
-          <div style={{ marginTop: 8 }}>
-            {formatDateTime(event.date_debut)} → {formatDateTime(event.date_fin)}
-          </div>
+      <p>Prix : {fmtMoney(event.prix_base)}</p>
 
-          <div style={{ marginTop: 8, fontWeight: 800 }}>
-            Prix de base : {fmtMoney(event.prix_base)}
-          </div>
+      <button disabled={!actif}>Réserver</button>
 
-          <div style={{ marginTop: 16 }}>
-            <button
-              type="button"
-              className="event-card__cta"
-              disabled={!actif}
-              onClick={handleReserveClick}
-            >
-              {actif ? "Réserver" : "Événement terminé"}
-            </button>
-          </div>
-        </div>
-      </section>
+      <div ref={offersRef}>
+        {sortedCats.map((c) => {
+          const offer = offersByCategorieId.get(c.id);
 
-      <section className="event-detail__offers" ref={offersRef}>
-        <div className="event-detail__offers-inner">
-          <div className="event-detail__image-wrapper">
-            <img
-              src={imageSrc}
-              alt={event.nom_evenement}
-              className="event-detail__image"
-              loading="lazy"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
-              }}
-            />
-          </div>
+          const disabled =
+            !actif ||
+            !offer ||
+            !offer.est_disponible ||
+            (offer?.quota_billets_restant ?? 0) <= 0;
 
-          <h2 className="event-detail__offers-title">Choisir une offre</h2>
+          return (
+            <div key={c.id}>
+              <h3>{c.nom}</h3>
 
-          <div className="event-detail__offers-grid">
-            {sortedCats.map((c) => {
-              const offer = offersByCategorieId.get(c.id);
-              const disabled =
-                !actif ||
-                !offer ||
-                !offer.est_disponible ||
-                offer.stock_disponible <= 0;
+              <p>
+                {offer
+                  ? `${offer.quota_billets_restant} places restantes`
+                  : "—"}
+              </p>
 
-              return (
-                <article key={c.id} className="offer-card">
-                  <header className="offer-card__header">
-                    <span className={`offer-card__badge offer-card__badge--${c.code.toLowerCase()}`}>
-                      {c.nom}
-                    </span>
-                    <h3 className="offer-card__title">{c.code.toUpperCase()}</h3>
-                  </header>
-
-                  <dl className="offer-card__details">
-                    <div><dt>Billets</dt><dd>{c.nb_personnes}</dd></div>
-                    <div><dt>Prix</dt><dd>{offer ? fmtMoney(offer.prix_calcule) : "—"}</dd></div>
-                    <div><dt>Stock</dt><dd>{offer ? offer.stock_disponible : "—"}</dd></div>
-                  </dl>
-
-                  <div className="offer-card__actions">
-                    <button
-                      className="offer-card__cta"
-                      disabled={disabled || adding === offer?.id}
-                      onClick={() => offer && handleAddOffer(offer, c)}
-                    >
-                      {!actif ? "Indisponible"
-                        : disabled ? "Indisponible"
-                        : "Ajouter au panier"}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+              <button
+                disabled={disabled}
+                onClick={() => offer && handleAddOffer(offer, c)}
+              >
+                Ajouter au panier
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

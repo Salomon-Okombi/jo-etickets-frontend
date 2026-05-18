@@ -3,14 +3,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "@/features/cart/useCart";
 import { fmtMoneyFromCents } from "@/features/cart/money";
 
-
 export default function PublicCartPage() {
   const navigate = useNavigate();
-  const { items, setQty, removeItem, count } = useCart();
+
+  
+  const { items, setQty, removeItem } = useCart();
 
   const totalCents = useMemo(() => {
     return items.reduce(
-      (acc, it) => acc + (it.prix_centimes || 0) * (it.quantite || 0),
+      (acc, it) => acc + (it.prix_centimes ?? 0) * (it.quantite ?? 0),
       0
     );
   }, [items]);
@@ -18,6 +19,7 @@ export default function PublicCartPage() {
   return (
     <div className="cart-page">
       <h1 className="cart-page__title">🛒 Votre sélection</h1>
+
       <div className="cart-page__count">
         Encore une étape avant de réserver vos billets
       </div>
@@ -30,6 +32,7 @@ export default function PublicCartPage() {
           <p>
             Sélectionnez une épreuve et réservez vos billets en toute simplicité.
           </p>
+
           <Link to="/evenements">→ Voir les événements</Link>
         </div>
       ) : (
@@ -41,17 +44,26 @@ export default function PublicCartPage() {
                   <div className="cart-item__title">
                     {it.nom_offre ?? `Offre #${it.offre}`}
                   </div>
+
                   <div className="cart-item__meta">
                     Prix unitaire :
-                    <strong> {fmtMoneyFromCents(it.prix_centimes)}</strong> •{" "}
-                    <strong>{it.nb_personnes ?? "—"} places incluses</strong>
+                    <strong>
+                      {" "}
+                      {fmtMoneyFromCents(it.prix_centimes)}
+                    </strong>{" "}
+                    •{" "}
+                    <strong>
+                      {it.nb_personnes ?? "—"} places incluses
+                    </strong>
                   </div>
                 </div>
 
                 <div className="cart-item__actions">
                   <button
                     className="cart-btn"
-                    onClick={() => setQty(it.offre, Math.max(1, it.quantite - 1))}
+                    onClick={() =>
+                      setQty(it.offre, Math.max(1, it.quantite - 1))
+                    }
                     aria-label="Réduire la quantité"
                   >
                     −
@@ -61,7 +73,9 @@ export default function PublicCartPage() {
 
                   <button
                     className="cart-btn"
-                    onClick={() => setQty(it.offre, it.quantite + 1)}
+                    onClick={() =>
+                      setQty(it.offre, it.quantite + 1)
+                    }
                     aria-label="Augmenter la quantité"
                   >
                     +
@@ -89,7 +103,7 @@ export default function PublicCartPage() {
               className="cart-submit"
               onClick={() => navigate("/checkout")}
             >
-               Finaliser ma réservation
+              Finaliser ma réservation
             </button>
           </div>
         </>

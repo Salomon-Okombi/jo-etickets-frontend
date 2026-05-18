@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import type { Event } from "@/api/events.api";
+import type { Evenement as Event } from "@/types/evenements";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 
@@ -40,13 +40,14 @@ export default function EventCard({ event, className, showCTA = true }: Props) {
           <h3 className="card-title text-base sm:text-lg leading-snug">
             {event.nom_evenement}
           </h3>
+
           {event.discipline ? <Badge>{event.discipline}</Badge> : null}
         </div>
 
         <div className="text-sm opacity-80 space-y-1">
           <p>
             <span className="font-medium">Date :</span>{" "}
-            {new Date(event.date_evenement).toLocaleDateString("fr-FR", {
+            {new Date(event.date_debut).toLocaleDateString("fr-FR", {
               year: "numeric",
               month: "long",
               day: "numeric",

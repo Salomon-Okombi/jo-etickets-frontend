@@ -1,5 +1,3 @@
-// src/types/users.d.ts
-
 /* =========================================================
    TYPES MÉTIERS
 ========================================================= */
@@ -11,25 +9,34 @@ export type AccountType =
 
 /* =========================================================
    UTILISATEUR – LISTES / ADMIN
-   (CRUD admin, tableaux, recherches)
 ========================================================= */
 
 export interface User {
   id: number;
+
   username: string;
   email: string;
 
   role?: AccountType;
+
+  
+  is_active?: boolean;     
+  is_staff?: boolean;
+  is_superuser?: boolean;
+
+  //  logique métier backend
   est_bloque?: boolean;
   est_verifie?: boolean;
 
   date_creation?: string;
+
+  // utile si serializer futur
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 /* =========================================================
-   PROFIL UTILISATEUR CONNECTÉ
-   /api/utilisateurs/me/
-    utilisé dans useAuth / MainHeader / ProfilePage
+   PROFIL UTILISATEUR CONNECTÉ (ME)
 ========================================================= */
 
 export interface UserProfile {
@@ -42,8 +49,11 @@ export interface UserProfile {
   telephone?: string | null;
 
   role: AccountType;
+
   est_verifie: boolean;
   est_bloque: boolean;
+
+  is_active?: boolean;   
 
   photo_profil_url?: string | null;
 
@@ -70,6 +80,7 @@ export interface UserListParams {
   page_size?: number;
   search?: string;
   ordering?: string;
+
   role?: AccountType;
   est_bloque?: boolean;
 }
@@ -82,14 +93,18 @@ export interface UserRegisterPayload {
   username: string;
   email: string;
   password: string;
+
   role?: AccountType;
-  est_bloque?: boolean;
 }
 
+/*  important : update aligné backend */
 export interface UserUpdatePayload {
   username?: string;
   email?: string;
+
   role?: AccountType;
+  est_verifie?: boolean;
   est_bloque?: boolean;
+
   password?: string;
 }

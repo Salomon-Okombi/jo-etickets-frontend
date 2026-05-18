@@ -1,16 +1,21 @@
-export type OfferStatus = "ACTIVE" | "INACTIVE" | "EPUISEE" | "EXPIREE";
+/* =========================================================
+   STATUS OFFRE
+========================================================= */
 
-/**
- * Offre (API public + admin)
- * Ton backend renvoie :
- * - quota_billets_total / quota_billets_restant
- * - packs_total / packs_disponibles (calculés)
- * - prix_calcule (string)
- * - infos catégorie (nb_personnes, type_offre, multiplicateur)
- */
+export type OfferStatus =
+  | "ACTIVE"
+  | "INACTIVE"
+  | "EPUISEE"
+  | "EXPIREE";
+
+/* =========================================================
+   MODÈLE OFFRE (API public + admin)
+========================================================= */
+
 export interface Offer {
   id: number;
 
+  // Relations
   evenement: number;
   evenement_nom?: string | null;
 
@@ -18,36 +23,42 @@ export interface Offer {
   categorie_code?: string | null;
   categorie_nom?: string | null;
 
+  // Infos principales
   nom_offre: string;
   description?: string | null;
 
-  // Prix (toujours en lecture)
-  prix_calcule?: string;      // ex: "12.00"
-  prix?: string | number;     // optionnel (prix stocké), utile admin/debug
+  // Prix
+  prix_calcule?: string;       // ex: "12.00"
+  prix?: string | number;      // parfois présent (admin)
 
-  // Infos catégorie (lecture)
-  nb_personnes?: number;      // 1/2/4
-  multiplicateur?: number;    // alias métier
-  type_offre?: string;        // code catégorie (SOLO/DUO/FAMILLE)
+  // Catégorie (lecture uniquement)
+  nb_personnes?: number;
+  multiplicateur?: number;
+  type_offre?: string;
 
-  // Quota en billets (places) : c’est ton stock réel
+  // Stock réel (places)
   quota_billets_total: number;
   quota_billets_restant: number;
 
-  // Quota exprimé en packs (calculé) :
-  // packs_disponibles = quota_billets_restant // nb_personnes
+  // Packs calculés
   packs_total?: number;
   packs_disponibles?: number;
 
   // Fenêtre de vente
-  date_debut_vente: string;   // ISO datetime
-  date_fin_vente: string;     // ISO datetime
+  date_debut_vente: string;
+  date_fin_vente: string;
 
+  // Statut métier
   statut: OfferStatus;
-  est_disponible?: boolean;   // lecture (public/admin)
+
+  // Calcul backend
+  est_disponible?: boolean;
 }
 
-/* Pagination DRF */
+/* =========================================================
+   PAGINATION DRF  IMPORTANT (corrige ton erreur)
+========================================================= */
+
 export interface Paginated<T> {
   count: number;
   next: string | null;
@@ -55,26 +66,26 @@ export interface Paginated<T> {
   results: T[];
 }
 
-/* Paramètres liste offres (alignés avec filterset_fields/search/ordering) */
+/* =========================================================
+   PARAMÈTRES DE REQUÊTE (listOffers)
+========================================================= */
+
 export interface OfferListParams {
   page?: number;
   page_size?: number;
 
-  // filtres DRF
   evenement?: number;
   categorie?: number;
   statut?: OfferStatus;
 
-  // recherche/tri
   search?: string;
   ordering?: string;
 }
 
-/**
- * Payload admin : aligné sur OffreAdminSerializer (quota billets)
- * Aucun prix en entrée (prix dérivé)
- * Aucun nb_personnes/type_offre en entrée (vient de la catégorie)
- */
+/* =========================================================
+   PAYLOADS ADMIN
+========================================================= */
+
 export interface OfferCreatePayload {
   evenement: number;
   categorie: number;
@@ -85,10 +96,31 @@ export interface OfferCreatePayload {
   quota_billets_total: number;
   quota_billets_restant: number;
 
-  date_debut_vente: string;   // ISO datetime
-  date_fin_vente: string;     // ISO datetime
+  date_debut_vente: string;
+  date_fin_vente: string;
 
   statut: OfferStatus;
 }
 
 export type OfferUpdatePayload = Partial<OfferCreatePayload>;
+
+/* =========================================================
+   HELPERS (OPTIONNEL MAIS UTILE)
+========================================================= */
+
+/**
+ * Nombre de packs disponibles
+ */
+export function getAvailablePacks(offer: Offer): number {
+  if (!offer.nb_personnes) return 0;
+  return Math.floor(
+    (offer.quota_billets_restant ?? 0) / offer.nb_personnes
+  );
+}
+
+/**
+ * Vérifie si l'offre est vendable côté front
+ */
+export function isOfferAvailable(offer: Offer): boolean {
+  return Boolean(offer.est_disponible);
+}

@@ -1,4 +1,4 @@
-//src/pages/Client/OffersListPage.tsx
+// src/pages/Client/OffersListPage.tsx
 import { useEffect, useState } from "react";
 import { addToCart } from "@/api/carts.api";
 import { listOffers } from "@/api/offers.api";
@@ -56,24 +56,31 @@ export default function OffersListPage() {
             <div key={o.id} className="card bg-base-100 shadow">
               <div className="card-body">
                 <h2 className="card-title">{o.nom_offre}</h2>
+
                 <p className="text-sm opacity-75 line-clamp-3">
                   {o.description}
                 </p>
+
                 <div className="flex items-center justify-between mt-2">
                   <span className="font-semibold">
-                    {formatCurrency(Number(o.prix || 0))}
+                    {formatCurrency(Number(o.prix ?? o.prix_calcule ?? 0))}
                   </span>
+
+                  {/*  CORRECTION */}
                   <span className="badge">
-                    {o.stock_disponible ?? 0} dispo
+                    {o.est_disponible
+                      ? `${o.quota_billets_restant ?? 0} dispo`
+                      : "Indisponible"}
                   </span>
                 </div>
+
                 <div className="card-actions justify-end mt-3">
                   <button
                     className="btn btn-primary"
                     onClick={() => handleAdd(o)}
-                    disabled={(o.stock_disponible ?? 0) <= 0}
+                    disabled={!o.est_disponible}
                   >
-                    Ajouter au panier
+                    {o.est_disponible ? "Ajouter au panier" : "Indisponible"}
                   </button>
                 </div>
               </div>
@@ -82,6 +89,7 @@ export default function OffersListPage() {
         </div>
       )}
 
+      {/* Pagination */}
       <div className="flex justify-center gap-2">
         <button
           className="btn btn-outline btn-sm"
@@ -90,6 +98,7 @@ export default function OffersListPage() {
         >
           Précédent
         </button>
+
         <button
           className="btn btn-outline btn-sm"
           disabled={!data?.next}
@@ -101,3 +110,4 @@ export default function OffersListPage() {
     </div>
   );
 }
+``

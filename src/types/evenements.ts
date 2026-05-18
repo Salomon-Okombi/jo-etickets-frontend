@@ -1,5 +1,3 @@
-// src/types/evenements.ts
-
 /* =========================
    Statut BACKEND (API)
 ========================= */
@@ -14,11 +12,11 @@ export interface Evenement {
   id: number;
 
   nom_evenement: string;
-  discipline?: string;
+  discipline?: string | null;
   lieu: string;
 
-  date_debut: string; // ISO datetime
-  date_fin: string;   // ISO datetime
+  date_debut: string;
+  date_fin: string;
 
   description_courte?: string;
   description_longue?: string;
@@ -26,13 +24,25 @@ export interface Evenement {
   image_url?: string | null;
 
   prix_base: string;
-  statut: EventBackendStatus;
+
+  // présent en admin mais pas toujours en public
+  statut?: EventBackendStatus;
 
   date_creation?: string;
 }
 
 /* =========================
-   Pagination DRF
+   TYPES PUBLIC 
+========================= */
+
+export type PublicEvenementListItem = Evenement;
+export type PublicEvenementDetail = Evenement;
+
+// placeholder si besoin côté front
+export type PublicOffre = any;
+
+/* =========================
+   Pagination DRF 
 ========================= */
 
 export interface Paginated<T> {
@@ -54,8 +64,7 @@ export interface EvenementListParams {
 }
 
 /* =========================
-   Helpers UI (FRONTEND UNIQUEMENT)
-    PAS envoyés au backend
+   Helpers UI
 ========================= */
 
 export type EventUIStatus = "A_VENIR" | "EN_COURS" | "TERMINE";
@@ -71,7 +80,7 @@ export function computeEventUIStatus(
   const debut = new Date(date_debut);
   const fin = new Date(date_fin);
 
-  if (now < debut) return "A_VENIR";
-  if (now > fin) return "TERMINE";
+  if (now < debut) return "A_VENIR";  
+  if (now > fin) return "TERMINE";   
   return "EN_COURS";
 }

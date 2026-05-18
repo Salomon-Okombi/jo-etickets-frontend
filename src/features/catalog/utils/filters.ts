@@ -1,5 +1,5 @@
 // src/features/catalog/utils/filters.ts
-import type { Event } from "@/api/events.api";
+import type { Evenement as Event } from "@/types/evenements";
 import type { Offer } from "@/types/offers";
 
 /* ------------------------------------------------------------------
@@ -7,17 +7,17 @@ import type { Offer } from "@/types/offers";
 ------------------------------------------------------------------ */
 
 export interface EventFilters {
-  search?: string;          // texte à chercher sur nom / discipline / lieu
-  discipline?: string;      // filtre par discipline_sportive
-  dateFrom?: string;        // ISO string "YYYY-MM-DD"
-  dateTo?: string;          // ISO string "YYYY-MM-DD"
+  search?: string;
+  discipline?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface OfferFilters {
-  search?: string;          // texte à chercher sur nom_offre / description
+  search?: string;
   minPrice?: number;
   maxPrice?: number;
-  onlyAvailable?: boolean;  // true => stock_disponible > 0
+  onlyAvailable?: boolean;
 }
 
 /* ------------------------------------------------------------------
@@ -30,23 +30,24 @@ function normalize(str: string | null | undefined): string {
 
 function inRangeDate(date: string, from?: string, to?: string): boolean {
   if (!date) return false;
-  const d = date.slice(0, 10); // YYYY-MM-DD
+  const d = date.slice(0, 10);
+
   if (from && d < from) return false;
   if (to && d > to) return false;
+
   return true;
 }
 
 /* ------------------------------------------------------------------
-   Filtres ÉVÉNEMENTS
+   Filtres ÉVÉNEMENTS 
 ------------------------------------------------------------------ */
 
 export function filterEvents(events: Event[], filters: EventFilters): Event[] {
   const { search, discipline, dateFrom, dateTo } = filters;
-
   const searchNorm = normalize(search);
 
   return events.filter((evt) => {
-    // recherche texte
+    //  recherche texte
     if (searchNorm) {
       const haystack = [
         evt.nom_evenement,
@@ -67,8 +68,8 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
       return false;
     }
 
-    // plage de dates
-    if ((dateFrom || dateTo) && !inRangeDate(evt.date_evenement, dateFrom, dateTo)) {
+    // date_evenement → date_debut
+    if ((dateFrom || dateTo) && !inRangeDate(evt.date_debut, dateFrom, dateTo)) {
       return false;
     }
 
@@ -77,7 +78,7 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
 }
 
 /* ------------------------------------------------------------------
-   Filtres OFFRES
+   Filtres OFFRES 
 ------------------------------------------------------------------ */
 
 export function filterOffers(offers: Offer[], filters: OfferFilters): Offer[] {
@@ -100,13 +101,14 @@ export function filterOffers(offers: Offer[], filters: OfferFilters): Offer[] {
       }
     }
 
-    // price range
-    const price = Number(offer.prix ?? 0);
+    //  prix
+    const price = Number(offer.prix ?? offer.prix_calcule ?? 0);
+
     if (typeof minPrice === "number" && price < minPrice) return false;
     if (typeof maxPrice === "number" && price > maxPrice) return false;
 
-    // stock
-    if (onlyAvailable && (offer.stock_disponible ?? 0) <= 0) {
+    //  CORRECTION : stock_disponible → est_disponible
+    if (onlyAvailable && !offer.est_disponible) {
       return false;
     }
 
@@ -115,42 +117,84 @@ export function filterOffers(offers: Offer[], filters: OfferFilters): Offer[] {
 }
 
 /* ------------------------------------------------------------------
-   Tri simple (optionnel mais pratique)
+   Tri OFFRES 
 ------------------------------------------------------------------ */
 
-export type OfferSortKey = "price-asc" | "price-desc" | "name-asc" | "name-desc";
+export type OfferSortKey =
+  | "price-asc"
+  | "price-desc"
+  | "name-asc"
+  | "name-desc";
 
 export function sortOffers(offers: Offer[], sort: OfferSortKey): Offer[] {
   const copy = [...offers];
 
   switch (sort) {
     case "price-asc":
-      return copy.sort((a, b) => Number(a.prix ?? 0) - Number(b.prix ?? 0));
+      return copy.sort(
+        (a, b) =>
+          Number(a.prix ?? a.prix_calcule ?? 0) -
+          Number(b.prix ?? b.prix_calcule ?? 0)
+      );
+
     case "price-desc":
-      return copy.sort((a, b) => Number(b.prix ?? 0) - Number(a.prix ?? 0));
+      return copy.sort(
+        (a, b) =>
+          Number(b.prix ?? b.prix_calcule ?? 0) -
+          Number(a.prix ?? a.prix_calcule ?? 0)
+      );
+
     case "name-asc":
-      return copy.sort((a, b) => a.nom_offre.localeCompare(b.nom_offre));
+      return copy.sort((a, b) =>
+        a.nom_offre.localeCompare(b.nom_offre)
+      );
+
     case "name-desc":
-      return copy.sort((a, b) => b.nom_offre.localeCompare(a.nom_offre));
+      return copy.sort((a, b) =>
+        b.nom_offre.localeCompare(a.nom_offre)
+      );
+
     default:
       return copy;
   }
 }
 
-export type EventSortKey = "date-asc" | "date-desc" | "name-asc" | "name-desc";
+/* ------------------------------------------------------------------
+   Tri ÉVÉNEMENTS 
+------------------------------------------------------------------ */
+
+export type EventSortKey =
+  | "date-asc"
+  | "date-desc"
+  | "name-asc"
+  | "name-desc";
 
 export function sortEvents(events: Event[], sort: EventSortKey): Event[] {
   const copy = [...events];
 
   switch (sort) {
     case "date-asc":
-      return copy.sort((a, b) => a.date_evenement.localeCompare(b.date_evenement));
+      //  CORRECTION
+      return copy.sort((a, b) =>
+        a.date_debut.localeCompare(b.date_debut)
+      );
+
     case "date-desc":
-      return copy.sort((a, b) => b.date_evenement.localeCompare(a.date_evenement));
+      //  CORRECTION
+      return copy.sort((a, b) =>
+        b.date_debut.localeCompare(a.date_debut)
+      );
+
     case "name-asc":
-      return copy.sort((a, b) => a.nom_evenement.localeCompare(b.nom_evenement));
+      return copy.sort((a, b) =>
+        a.nom_evenement.localeCompare(b.nom_evenement)
+      );
+
     case "name-desc":
-      return copy.sort((a, b) => b.nom_evenement.localeCompare(a.nom_evenement));
+      return copy.sort((a, b) =>
+        b.nom_evenement.localeCompare(a.nom_evenement)
+      );
+
     default:
       return copy;
   }
