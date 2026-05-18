@@ -1,11 +1,9 @@
-//src/pages/Users/UserAdminList.tsx
-import { useEffect, useMemo, useState } from "react";
+// src/pages/Users/UserAdminList.tsx
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listUsers, deleteUser } from "@/api/users.api";
 import type { User } from "@/types/users";
 import "@/styles/admin.css";
-
-const PAGE_SIZES = [10, 20, 50] as const;
 
 function formatDate(value?: string) {
   if (!value) return "—";
@@ -16,22 +14,25 @@ function formatDate(value?: string) {
   }
 }
 
-/* ✅ TYPE = basé sur role backend */
+/* TYPE basé sur backend */
 function badgeType(role?: string) {
   const v = (role ?? "").toUpperCase();
+
   if (v === "ADMIN") return "admin-badge admin-badge--warn";
   if (v === "ORGANISATEUR") return "admin-badge admin-badge--ok";
+
   return "admin-badge admin-badge--muted";
 }
 
-/* ✅ STATUT = basé sur est_bloque / actif */
+/* STATUT basé sur backend */
 function badgeStatut(user: User) {
   if (user.est_bloque) return "admin-badge admin-badge--danger";
   if (user.is_active) return "admin-badge admin-badge--ok";
+
   return "admin-badge admin-badge--muted";
 }
 
-/* ✅ afficher tous les champs dynamiques */
+/* champs extra ✅ */
 function renderExtraFields(user: Record<string, any>) {
   const blacklist = new Set([
     "id",
@@ -53,92 +54,67 @@ function renderExtraFields(user: Record<string, any>) {
         <span
           key={k}
           className="admin-badge admin-badge--muted"
-          title={`${k} = ${String(v)}`}
         >
           {k}:{String(v)}
         </span>
       ))}
-      {entries.length > 6 ? (
-        <span className="admin-badge admin-badge--muted">
-          +{entries.length - 6}
-        </span>
-      ) : null}
     </div>
   );
 }
 
 export default function UsersAdminList() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const page = Number(searchParams.get("page") ?? 1) || 1;
   const pageSize = Number(searchParams.get("page_size") ?? 20) || 20;
   const q = searchParams.get("q") ?? "";
 
-  const [input, setInput] = useState(q);
   const [items, setItems] = useState<User[]>([]);
-  const [count, setCount] = useState(0);
-
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-
-  useEffect(() => setInput(q), [q]);
-
-  async function fetchUsers(signal?: AbortSignal) {
-    const data = await listUsers({
-      page,
-      page_size: pageSize,
-      search: q.trim() || undefined,
-    });
-
-    if (signal?.aborted) return;
-
-    setItems(data.results);
-    setCount(data.count);
-  }
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function run() {
+    async function fetchUsers() {
       try {
         setLoading(true);
-        setError(null);
-        await fetchUsers(controller.signal);
-      } catch (err: any) {
-        setError("Chargement des utilisateurs impossible.");
+
+        const data = await listUsers({
+          page,
+          page_size: pageSize,
+          search: q || undefined,
+        });
+
+        setItems(data.results);
+      } catch (err) {
         console.error(err);
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        setLoading(false);
       }
     }
 
-    run();
+    fetchUsers();
+
     return () => controller.abort();
   }, [page, pageSize, q]);
-
-  const totalPages = Math.max(1, Math.ceil(count / pageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-
-  function setParam(next: any) {
-    const sp = new URLSearchParams(searchParams);
-
-    if (next.q) sp.set("q", next.q);
-    else sp.delete("q");
-
-    sp.set("page", String(next.page ?? page));
-    sp.set("page_size", String(next.page_size ?? pageSize));
-    setSearchParams(sp);
-  }
 
   async function onDelete(u: User) {
     if (!confirm(`Supprimer ${u.username} ?`)) return;
 
-    setDeletingId(u.id);
-    await deleteUser(u.id);
-    setDeletingId(null);
-    fetchUsers();
+    try {
+      await deleteUser(u.id);
+
+      // refresh
+      const data = await listUsers({
+        page,
+        page_size: pageSize,
+        search: q || undefined,
+      });
+
+      setItems(data.results);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   return (
@@ -187,6 +163,7 @@ export default function UsersAdminList() {
                   </td>
 
                   <td>{formatDate(u.date_creation)}</td>
+
                   <td>{renderExtraFields(u)}</td>
 
                   <td>

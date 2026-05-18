@@ -33,7 +33,6 @@ export default function UserAdminCreate() {
         email,
         password,
         role,
-        est_bloque: estBloque,
       });
 
       navigate("/admin/utilisateurs", { replace: true });

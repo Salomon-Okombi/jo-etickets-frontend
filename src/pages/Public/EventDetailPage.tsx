@@ -1,6 +1,6 @@
 // src/pages/Events/EventDetailPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api from "@/api/axiosClient";
 import { useCart } from "@/features/cart/useCart";
 import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.api";
@@ -24,7 +24,7 @@ type OfferApi = {
   nom_offre?: string;
   prix_calcule: string;
   multiplicateur: number;
-  quota_billets_restant: number; // ✅ CORRECT
+  quota_billets_restant: number;
   statut: string;
   est_disponible: boolean;
 };
@@ -52,7 +52,10 @@ function fmtMoney(v?: number | string) {
   if (v === undefined || v === null) return "—";
   const n = typeof v === "string" ? Number(v) : v;
   if (!Number.isFinite(n)) return String(v);
-  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+  return n.toLocaleString("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+  });
 }
 
 function formatDateTime(iso: string) {
@@ -115,17 +118,16 @@ export default function EventDetailPage() {
         setOffers(unwrap<OfferApi>(offersRes.data));
       } catch {
         if (!mounted) return;
-        setError("Impossible de charger le détail et les offres.");
+        setError("Impossible de charger le détail.");
       } finally {
         if (mounted) setLoading(false);
       }
     }
 
-    if (Number.isFinite(eventId) && eventId > 0) {
-      loadAll();
-    } else {
+    if (Number.isFinite(eventId) && eventId > 0) loadAll();
+    else {
       setLoading(false);
-      setError("Identifiant d’événement invalide.");
+      setError("Identifiant invalide.");
     }
 
     return () => {
@@ -140,12 +142,15 @@ export default function EventDetailPage() {
 
   const offersByCategorieId = useMemo(() => {
     const map = new Map<number, OfferApi>();
-    for (const o of offers) map.set(Number(o.categorie), o);
+    offers.forEach((o) => map.set(Number(o.categorie), o));
     return map;
   }, [offers]);
 
   const sortedCats = useMemo(
-    () => [...cats].sort((a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)),
+    () =>
+      [...cats].sort(
+        (a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)
+      ),
     [cats]
   );
 
@@ -166,15 +171,32 @@ export default function EventDetailPage() {
   if (loading) return <div>Chargement…</div>;
   if (!event) return <div>{error}</div>;
 
+  const actif = isEventActive(event);
+
   const imageSrc =
     event.image_url && event.image_url.trim() !== ""
       ? event.image_url
       : FALLBACK_IMAGE;
 
-  const actif = isEventActive(event);
-
   return (
     <div>
+      {/* ✅ IMAGE */}
+      <div style={{ marginBottom: 16 }}>
+        <img
+          src={imageSrc}
+          alt={event.nom_evenement}
+          style={{
+            width: "100%",
+            maxHeight: 300,
+            objectFit: "cover",
+            borderRadius: 8,
+          }}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
+          }}
+        />
+      </div>
+
       <h1>{event.nom_evenement}</h1>
 
       <p>
@@ -193,7 +215,7 @@ export default function EventDetailPage() {
             !actif ||
             !offer ||
             !offer.est_disponible ||
-            (offer?.quota_billets_restant ?? 0) <= 0;
+            (offer.quota_billets_restant ?? 0) <= 0;
 
           return (
             <div key={c.id}>
