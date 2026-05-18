@@ -155,7 +155,7 @@ export default function RealtimeProvider({
     setError(null);
 
     try {
-      const ws = new WebSocket(wsUrl);
+      /*const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -178,7 +178,7 @@ export default function RealtimeProvider({
         setStatus("disconnected");
         clearHeartbeat();
         scheduleReconnect();
-      };
+      };*/
     } catch (e: any) {
       setError(String(e?.message ?? e));
       setStatus("disconnected");
