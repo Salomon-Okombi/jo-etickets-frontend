@@ -1,9 +1,14 @@
 // src/pages/Events/EventDetailPage.tsx
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api from "@/api/axiosClient";
 import { useCart } from "@/features/cart/useCart";
 import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.api";
+
+/* ===============================
+   TYPES
+=============================== */
 
 type EventDetail = {
   id: number;
@@ -30,11 +35,12 @@ type OfferApi = {
 };
 
 type Paginated<T> = {
-  count: number;
-  next: string | null;
-  previous: string | null;
   results: T[];
 };
+
+/* ===============================
+   CONST
+=============================== */
 
 const FALLBACK_IMAGE = "/images/event-default.jpg";
 
@@ -49,24 +55,15 @@ function unwrap<T>(data: any): T[] {
 }
 
 function fmtMoney(v?: number | string) {
-  if (v === undefined || v === null) return "—";
+  if (!v) return "—";
   const n = typeof v === "string" ? Number(v) : v;
-  if (!Number.isFinite(n)) return String(v);
-  return n.toLocaleString("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  });
+  return Number.isFinite(n)
+    ? n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
+    : String(v);
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("fr-FR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatDateTime(date: string) {
+  return new Date(date).toLocaleString("fr-FR");
 }
 
 function isEventActive(ev: EventDetail) {
@@ -95,39 +92,40 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /* ===============================
+     LOAD DATA
+  =============================== */
+
   useEffect(() => {
     let mounted = true;
 
-    async function loadAll() {
+    async function loadData() {
       try {
         setLoading(true);
-        setError(null);
 
-        const [evRes, catRows, offersRes] = await Promise.all([
-          api.get<EventDetail>(`/evenements/${eventId}/`),
+        const [ev, categories, off] = await Promise.all([
+          api.get(`/evenements/${eventId}/`),
           listOfferCategories(),
-          api.get<Paginated<OfferApi> | OfferApi[]>("/offres/", {
-            params: { evenement: eventId },
-          }),
+          api.get("/offres/", { params: { evenement: eventId } }),
         ]);
 
         if (!mounted) return;
 
-        setEvent(evRes.data);
-        setCats(catRows);
-        setOffers(unwrap<OfferApi>(offersRes.data));
-      } catch {
-        if (!mounted) return;
-        setError("Impossible de charger le détail.");
+        setEvent(ev.data);
+        setCats(categories);
+        setOffers(unwrap(off.data));
+      } catch (err) {
+        console.error(err);
+        setError("Erreur chargement événement");
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
     }
 
-    if (Number.isFinite(eventId) && eventId > 0) loadAll();
+    if (eventId > 0) loadData();
     else {
+      setError("ID invalide");
       setLoading(false);
-      setError("Identifiant invalide.");
     }
 
     return () => {
@@ -135,41 +133,43 @@ export default function EventDetailPage() {
     };
   }, [eventId]);
 
-  useEffect(() => {
-    if (!reserveRequested || !offersRef.current || loading) return;
-    offersRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [reserveRequested, loading]);
+  /* ===============================
+     OFFERS MAP
+  =============================== */
 
-  const offersByCategorieId = useMemo(() => {
+  const offersByCat = useMemo(() => {
     const map = new Map<number, OfferApi>();
-    offers.forEach((o) => map.set(Number(o.categorie), o));
+    offers.forEach((o) => map.set(o.categorie, o));
     return map;
   }, [offers]);
 
   const sortedCats = useMemo(
-    () =>
-      [...cats].sort(
-        (a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)
-      ),
+    () => [...cats].sort((a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)),
     [cats]
   );
 
-  function handleAddOffer(offer: OfferApi, category: OfferCategory) {
+  /* ===============================
+     ACTION
+  =============================== */
+
+  function addToCartHandler(offer: OfferApi, c: OfferCategory) {
     addItem({
       offre: offer.id,
       quantite: 1,
-      nom_offre:
-        offer.nom_offre ??
-        `${category.code} - ${event?.nom_evenement ?? ""}`,
+      nom_offre: offer.nom_offre ?? c.code,
       prix: offer.prix_calcule,
-      nb_personnes: category.nb_personnes,
+      nb_personnes: c.nb_personnes,
     });
 
     navigate("/panier");
   }
 
-  if (loading) return <div>Chargement…</div>;
-  if (!event) return <div>{error}</div>;
+  /* ===============================
+     STATES
+  =============================== */
+
+  if (loading) return <div className="event-detail__state">Chargement…</div>;
+  if (!event) return <div className="event-detail__state">{error}</div>;
 
   const actif = isEventActive(event);
 
@@ -178,65 +178,115 @@ export default function EventDetailPage() {
       ? event.image_url
       : FALLBACK_IMAGE;
 
+  /* ===============================
+     UI
+  =============================== */
+
   return (
-    <div>
-      {/* ✅ IMAGE */}
-      <div style={{ marginBottom: 16 }}>
-        <img
-          src={imageSrc}
-          alt={event.nom_evenement}
-          style={{
-            width: "100%",
-            maxHeight: 300,
-            objectFit: "cover",
-            borderRadius: 8,
-          }}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
-          }}
-        />
-      </div>
+    <div className="event-detail">
 
-      <h1>{event.nom_evenement}</h1>
+      {/* HERO */}
+      <section className="event-detail__hero">
+        <div className="event-detail__hero-inner">
 
-      <p>
-        {formatDateTime(event.date_debut)} → {formatDateTime(event.date_fin)}
-      </p>
+          <h1 className="event-detail__title">{event.nom_evenement}</h1>
 
-      <p>Prix : {fmtMoney(event.prix_base)}</p>
+          <div className="event-detail__meta">
+            <span>{event.lieu}</span>
+            {event.discipline && <span>{event.discipline}</span>}
+          </div>
 
-      <button disabled={!actif}>Réserver</button>
+          <div className="event-detail__date">
+            {formatDateTime(event.date_debut)} → {formatDateTime(event.date_fin)}
+          </div>
 
-      <div ref={offersRef}>
-        {sortedCats.map((c) => {
-          const offer = offersByCategorieId.get(c.id);
+          <p className="event-detail__description">
+            {event.description_longue}
+          </p>
 
-          const disabled =
-            !actif ||
-            !offer ||
-            !offer.est_disponible ||
-            (offer.quota_billets_restant ?? 0) <= 0;
+          <button
+            className="event-card__cta"
+            disabled={!actif}
+            onClick={() => offersRef.current?.scrollIntoView({ behavior: "smooth" })}
+          >
+            {actif ? "Réserver" : "Événement terminé"}
+          </button>
+        </div>
+      </section>
 
-          return (
-            <div key={c.id}>
-              <h3>{c.nom}</h3>
+      {/* OFFERS */}
+      <section className="event-detail__offers" ref={offersRef}>
+        <div className="event-detail__offers-inner">
 
-              <p>
-                {offer
-                  ? `${offer.quota_billets_restant} places restantes`
-                  : "—"}
-              </p>
+          {/* IMAGE */}
+          <div className="event-detail__image-wrapper">
+            <img
+              src={imageSrc}
+              alt={event.nom_evenement}
+              className="event-detail__image"
+              onError={(e) =>
+                ((e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE)
+              }
+            />
+          </div>
 
-              <button
-                disabled={disabled}
-                onClick={() => offer && handleAddOffer(offer, c)}
-              >
-                Ajouter au panier
-              </button>
-            </div>
-          );
-        })}
-      </div>
+          <h2 className="event-detail__offers-title">
+            Choisir une offre
+          </h2>
+
+          <div className="event-detail__offers-grid">
+            {sortedCats.map((c) => {
+              const offer = offersByCat.get(c.id);
+
+              const disabled =
+                !offer ||
+                !offer.est_disponible ||
+                (offer.quota_billets_restant ?? 0) <= 0 ||
+                !actif;
+
+              return (
+                <article key={c.id} className="offer-card">
+
+                  <header className="offer-card__header">
+                    <span className={`offer-card__badge`}>
+                      {c.nom}
+                    </span>
+                    <h3 className="offer-card__title">{c.code}</h3>
+                  </header>
+
+                  <div className="offer-card__description">
+                    {offer ? fmtMoney(offer.prix_calcule) : "—"}
+                  </div>
+
+                  <div className="offer-card__details">
+                    <div className="offer-card__detail-row">
+                      <dt>Places</dt>
+                      <dd>{c.nb_personnes}</dd>
+                    </div>
+
+                    <div className="offer-card__detail-row">
+                      <dt>Stock</dt>
+                      <dd>{offer?.quota_billets_restant ?? "—"}</dd>
+                    </div>
+                  </div>
+
+                  <div className="offer-card__actions">
+                    <button
+                      className="offer-card__cta"
+                      disabled={disabled}
+                      onClick={() => offer && addToCartHandler(offer, c)}
+                    >
+                      {disabled ? "Indisponible" : "Ajouter"}
+                    </button>
+                  </div>
+
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
+``
