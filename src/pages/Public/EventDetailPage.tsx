@@ -1,7 +1,7 @@
 // src/pages/Events/EventDetailPage.tsx
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "@/api/axiosClient";
 import { useCart } from "@/features/cart/useCart";
 import { listOfferCategories, type OfferCategory } from "@/api/offerCategories.api";
@@ -32,10 +32,6 @@ type OfferApi = {
   quota_billets_restant: number;
   statut: string;
   est_disponible: boolean;
-};
-
-type Paginated<T> = {
-  results: T[];
 };
 
 /* ===============================
@@ -80,9 +76,6 @@ export default function EventDetailPage() {
   const eventId = Number(id);
 
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const reserveRequested = searchParams.get("reserve") === "1";
-
   const offersRef = useRef<HTMLDivElement | null>(null);
   const { addItem } = useCart();
 
@@ -102,6 +95,7 @@ export default function EventDetailPage() {
     async function loadData() {
       try {
         setLoading(true);
+        setError(null);
 
         const [ev, categories, off] = await Promise.all([
           api.get(`/evenements/${eventId}/`),
@@ -118,13 +112,14 @@ export default function EventDetailPage() {
         console.error(err);
         setError("Erreur chargement événement");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
-    if (eventId > 0) loadData();
-    else {
-      setError("ID invalide");
+    if (Number.isFinite(eventId) && eventId > 0) {
+      loadData();
+    } else {
+      setError("Identifiant invalide");
       setLoading(false);
     }
 
@@ -134,7 +129,7 @@ export default function EventDetailPage() {
   }, [eventId]);
 
   /* ===============================
-     OFFERS MAP
+     MAP OFFERS
   =============================== */
 
   const offersByCat = useMemo(() => {
@@ -143,10 +138,11 @@ export default function EventDetailPage() {
     return map;
   }, [offers]);
 
-  const sortedCats = useMemo(
-    () => [...cats].sort((a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)),
-    [cats]
-  );
+  const sortedCats = useMemo(() => {
+    return [...cats].sort(
+      (a, b) => (a.ordre_affichage ?? 0) - (b.ordre_affichage ?? 0)
+    );
+  }, [cats]);
 
   /* ===============================
      ACTION
@@ -168,8 +164,17 @@ export default function EventDetailPage() {
      STATES
   =============================== */
 
-  if (loading) return <div className="event-detail__state">Chargement…</div>;
-  if (!event) return <div className="event-detail__state">{error}</div>;
+  if (loading) {
+    return <div className="event-detail__state">Chargement…</div>;
+  }
+
+  if (!event) {
+    return (
+      <div className="event-detail__state event-detail__state--error">
+        {error ?? "Événement introuvable"}
+      </div>
+    );
+  }
 
   const actif = isEventActive(event);
 
@@ -189,7 +194,9 @@ export default function EventDetailPage() {
       <section className="event-detail__hero">
         <div className="event-detail__hero-inner">
 
-          <h1 className="event-detail__title">{event.nom_evenement}</h1>
+          <h1 className="event-detail__title">
+            {event.nom_evenement}
+          </h1>
 
           <div className="event-detail__meta">
             <span>{event.lieu}</span>
@@ -197,7 +204,8 @@ export default function EventDetailPage() {
           </div>
 
           <div className="event-detail__date">
-            {formatDateTime(event.date_debut)} → {formatDateTime(event.date_fin)}
+            {formatDateTime(event.date_debut)} →{" "}
+            {formatDateTime(event.date_fin)}
           </div>
 
           <p className="event-detail__description">
@@ -207,7 +215,9 @@ export default function EventDetailPage() {
           <button
             className="event-card__cta"
             disabled={!actif}
-            onClick={() => offersRef.current?.scrollIntoView({ behavior: "smooth" })}
+            onClick={() =>
+              offersRef.current?.scrollIntoView({ behavior: "smooth" })
+            }
           >
             {actif ? "Réserver" : "Événement terminé"}
           </button>
@@ -224,9 +234,9 @@ export default function EventDetailPage() {
               src={imageSrc}
               alt={event.nom_evenement}
               className="event-detail__image"
-              onError={(e) =>
-                ((e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE)
-              }
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE;
+              }}
             />
           </div>
 
@@ -248,10 +258,13 @@ export default function EventDetailPage() {
                 <article key={c.id} className="offer-card">
 
                   <header className="offer-card__header">
-                    <span className={`offer-card__badge`}>
+                    <span className="offer-card__badge">
                       {c.nom}
                     </span>
-                    <h3 className="offer-card__title">{c.code}</h3>
+
+                    <h3 className="offer-card__title">
+                      {c.code}
+                    </h3>
                   </header>
 
                   <div className="offer-card__description">
